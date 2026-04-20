@@ -11,8 +11,8 @@
 
     /* ── Backgrounds ─────────────────────────────────────────────── */
     --color-bg:             #f4f6f8;
-    --color-sidebar:        #1a233a;
-    --color-sidebar-deep:   #0f172a;
+    --color-sidebar:        #0a1628;
+    --color-sidebar-deep:   #060e1a;
     --color-panel:          #ffffff;
     --color-panel-raised:   #f8fafc;
     --color-panel-muted:    #f1f5f9;
@@ -67,7 +67,7 @@
     --shadow-sidebar: 4px 0 12px rgba(0, 0, 0, 0.2);
 
     /* ── Layout ──────────────────────────────────────────────────── */
-    --sidebar-width:  240px;
+    --sidebar-width:  162px;
     --topbar-height:  56px;
 }
 
@@ -86,51 +86,71 @@ body {
 
 /* ── Sidebar ──────────────────────────────────────────────────── */
 .sidebar {
-    width: 240px;
-    min-width: 240px;
-    max-width: 240px;
-    background: #1a233a;
-    color: #cbd5e1;
+    width: 162px;
+    min-width: 162px;
+    max-width: 162px;
+    background: #0a1628;
+    color: rgba(255,255,255,0.55);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
     overflow-x: hidden;
-    border-right: 1px solid #0f172a;
-    box-shadow: 4px 0 12px rgba(0,0,0,0.2);
+    border-right: 1px solid #060e1a;
+    box-shadow: 4px 0 16px rgba(0,0,0,0.28);
     z-index: 20;
 }
 .sidebar-logo {
-    height: 64px;
+    height: 56px;
     display: flex;
     align-items: center;
-    padding: 0 24px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 0 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    flex-shrink: 0;
 }
-.sidebar-logo .brand     { color: #fff; font-weight: 700; font-size: 1.2rem; }
-.sidebar-logo .brand-sub { color: #00df9a; font-size: 0.7rem; margin-left: 4px; }
-.sidebar-body { padding: 16px 24px; }
-.sidebar-section-label {
+.sidebar-logo .brand {
+    color: #fff;
+    font-weight: 800;
+    font-size: 1.05rem;
+    letter-spacing: -0.03em;
+}
+.sidebar-logo .brand-sub {
+    /* hide "Networks" text — Figma shows "ZERO." only */
+    display: none;
+}
+/* "ZERO." dot appended via CSS */
+.sidebar-logo .brand::after {
+    content: '.';
     color: #00df9a;
-    font-size: 0.75rem;
-    font-weight: 600;
-    margin-bottom: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
-.sidebar-nav { display: flex; flex-direction: column; gap: 4px; }
+.sidebar-body {
+    padding: 14px 0 16px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+.sidebar-section-label {
+    color: rgba(255,255,255,0.35);
+    font-size: 0.62rem;
+    font-weight: 700;
+    margin: 8px 18px 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+}
+.sidebar-nav { display: flex; flex-direction: column; gap: 1px; }
 .sidebar-nav a {
     display: flex;
     align-items: center;
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-size: 0.8rem;
+    padding: 9px 18px;
+    border-radius: 0;
+    font-size: 0.75rem;
     font-weight: 600;
     text-decoration: none;
-    background: #00df9a;
-    color: #1a233a;
+    background: rgba(0,223,154,0.12);
+    color: #00df9a;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: background 0.15s, color 0.15s;
 }
 
 /* ── Main column ──────────────────────────────────────────────── */
