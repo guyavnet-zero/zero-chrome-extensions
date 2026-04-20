@@ -384,7 +384,8 @@
 
   /** Global CSS so our row wins flex/grid paint order even when another extension touches the sidebar. */
   function ensureZnDashboardBetaOrderStyle() {
-    if (document.getElementById("zn-dashboard-beta-order-style")) return;
+    const existing = document.getElementById("zn-dashboard-beta-order-style");
+    if (existing) existing.remove(); // always replace so the latest CSS version is used
     var st = document.createElement("style");
     st.id = "zn-dashboard-beta-order-style";
     st.textContent =
@@ -430,7 +431,89 @@
       ".zn-sidebar a.zn-route-sidebar-item.router-link-active .mdc-list-item__primary-text," +
       ".zn-sidebar a.zn-route-sidebar-item.router-link-exact-active .mdc-list-item__primary-text," +
       ".zn-sidebar a.zn-route-sidebar-item.active .mdc-list-item__primary-text" +
-      "{color:#ffffff!important;}";
+      "{color:#ffffff!important;}" +
+
+      // When the Dashboard overlay is open the portal's router still marks the last
+      // visited portal route as active (green highlight + dark text).  Strip that
+      // highlight so no portal item appears selected while Dashboard is showing.
+      "html.zn-dashboard-beta-active .zn-sidebar mat-list-item.router-link-active," +
+      "html.zn-dashboard-beta-active .zn-sidebar mat-list-item.router-link-exact-active," +
+      "html.zn-dashboard-beta-active .zn-sidebar mat-list-item.active," +
+      "html.zn-dashboard-beta-active .zn-sidebar .mat-mdc-list-item.router-link-active," +
+      "html.zn-dashboard-beta-active .zn-sidebar .mat-mdc-list-item.router-link-exact-active," +
+      "html.zn-dashboard-beta-active .zn-sidebar .mdc-list-item.router-link-active," +
+      "html.zn-dashboard-beta-active .zn-sidebar .mdc-list-item.router-link-exact-active," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item.router-link-active," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item.router-link-exact-active," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item.active," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item.router-link-active," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item.router-link-exact-active" +
+      "{background:transparent!important;background-color:transparent!important;color:#cbd5e1!important;}" +
+
+      "html.zn-dashboard-beta-active .zn-sidebar mat-list-item.router-link-active .mdc-list-item__primary-text," +
+      "html.zn-dashboard-beta-active .zn-sidebar mat-list-item.router-link-exact-active .mdc-list-item__primary-text," +
+      "html.zn-dashboard-beta-active .zn-sidebar mat-list-item.router-link-active mat-icon," +
+      "html.zn-dashboard-beta-active .zn-sidebar mat-list-item.router-link-exact-active mat-icon," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item.router-link-active .mdc-list-item__primary-text," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item.router-link-exact-active .mdc-list-item__primary-text" +
+      "{color:#cbd5e1!important;}" +
+
+      // The diagnostic confirmed background-color is already transparent — the green
+      // highlight must come from a ::before/::after pseudo-element (common in Vue/Angular
+      // scoped CSS for active-state indicators). Reset those and also clear box-shadow/border.
+      // IMPORTANT: Only target pseudo-elements on ACTIVE items — targeting all items would
+      // wipe out hover shadows and cause label visual glitches on non-active rows.
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item.router-link-active::before," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item.router-link-active::after," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item.router-link-exact-active::before," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item.router-link-exact-active::after," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item.active::before," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item.active::after," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item.router-link-active::before," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item.router-link-active::after," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item.router-link-exact-active::before," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item.router-link-exact-active::after," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item.router-link-active::before," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item.router-link-active::after," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item.router-link-exact-active::before," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item.router-link-exact-active::after," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item.active::before," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item.active::after" +
+      "{background:transparent!important;background-color:transparent!important;" +
+      "box-shadow:none!important;opacity:0!important;}" +
+
+      // Also cover :has() — targets the wrapper when only the child link has the active class.
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item:has(.router-link-active)," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item:has(.router-link-exact-active)," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item:has(.router-link-active)," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item:has(.router-link-exact-active)" +
+      "{background:transparent!important;background-color:transparent!important;box-shadow:none!important;}" +
+
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item:has(.router-link-active)::before," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item:has(.router-link-exact-active)::before," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item:has(.router-link-active)::after," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item:has(.router-link-exact-active)::after," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item:has(.router-link-active)::before," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item:has(.router-link-exact-active)::before," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item:has(.router-link-active)::after," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item:has(.router-link-exact-active)::after" +
+      "{background:transparent!important;background-color:transparent!important;" +
+      "box-shadow:none!important;opacity:0!important;}" +
+
+      // ROOT CAUSE (confirmed by diagnostic): the green highlight is on div.zn-sidebar-item-base
+      // (bg: rgb(12,216,155)) — a child INSIDE the <a> tag. All previous rules targeted the <a>
+      // and its ancestors, but missed this inner element. Target it directly.
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item-base," +
+      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item-base__icon" +
+      "{background:transparent!important;background-color:transparent!important;}" +
+
+      // Also neutralise any color the icon picks up from the active state,
+      // so the icon renders in the same muted tone as inactive items.
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base__icon," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base svg," +
+      "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base path" +
+      "{background:transparent!important;background-color:transparent!important;fill:currentColor!important;}";
     (document.head || document.documentElement).appendChild(st);
   }
 
@@ -595,6 +678,33 @@
     if (right > 0) mount.style.left = right + "px";
   }
 
+  // ── Active-item highlight reset (JS override) ────────────────────────────
+  //
+  // The portal's Vue scoped CSS sets background-color on div.zn-sidebar-item-base
+  // (confirmed: rgb(12,216,155)) using !important with a scoped attribute selector
+  // that appears AFTER our injected <style> tag, so our CSS !important loses.
+  // The only guaranteed win is an inline style with !important (specificity 1,0,0,0
+  // beats any class-based selector, regardless of source order).
+
+  function resetActiveItemHighlight() {
+    if (!document.documentElement.classList.contains("zn-dashboard-beta-active")) return;
+    var sidebar = document.querySelector(".zn-sidebar");
+    if (!sidebar) return;
+    sidebar.querySelectorAll(".zn-sidebar-item-base").forEach(function (el) {
+      el.style.setProperty("background", "transparent", "important");
+      el.style.setProperty("background-color", "transparent", "important");
+    });
+  }
+
+  function restoreActiveItemHighlight() {
+    var sidebar = document.querySelector(".zn-sidebar");
+    if (!sidebar) return;
+    sidebar.querySelectorAll(".zn-sidebar-item-base").forEach(function (el) {
+      el.style.removeProperty("background");
+      el.style.removeProperty("background-color");
+    });
+  }
+
   // ── Show / hide dashboard ─────────────────────────────────────────────────
 
   function showDashboard() {
@@ -602,6 +712,11 @@
       alert("Dashboard extension was reloaded — please refresh this tab.");
       return;
     }
+
+    document.documentElement.classList.add("zn-dashboard-beta-active");
+    resetActiveItemHighlight();
+    // Re-run after short delays in case the portal's Vue re-renders the sidebar
+    [50, 150, 350, 700].forEach(function (ms) { setTimeout(resetActiveItemHighlight, ms); });
 
     try {
       sessionStorage.setItem(STORAGE_KEY, "1");
@@ -647,6 +762,8 @@
 
   /** Hide the overlay only (keeps session preference for “return to Connect”). */
   function hideDashboardOverlay() {
+    document.documentElement.classList.remove("zn-dashboard-beta-active");
+    restoreActiveItemHighlight();
     const mount = document.getElementById(MOUNT_ID);
     if (mount) mount.style.setProperty("display", "none", "important");
   }

@@ -997,6 +997,62 @@ function znCountryIsoForIpFromSessions(ip, sessions) {
 }
 
 /**
+ * Resolves geo for IPs whose country was not available from Zero session data.
+ * Strategy:
+ *   1. Re-read Zero session data up to ZN_GEO_ZERO_RETRIES times (the portal may
+ *      enrich sessions asynchronously, so a later read can yield a country ISO).
+ *   2. For any IPs still unresolved after those retries, hand off to the existing
+ *      throttled public-provider queue (processSessionGeoIps), which tries all four
+ *      public GeoIP services with back-off.
+ * Successful resolutions call updateMapProgressively so dots pop onto the map
+ * gradually without needing a full re-render.
+ */
+async function znResolveUnknownGeoIps(ips) {
+    if (!ips || !ips.length) return;
+    var remaining = ips.slice();
+
+    for (var attempt = 0; attempt < ZN_GEO_ZERO_RETRIES && remaining.length; attempt++) {
+        if (attempt > 0) {
+            await new Promise(function(r) { setTimeout(r, ZN_GEO_ZERO_RETRY_MS); });
+        }
+        var sessions = lastData && lastData.ses;
+        if (!sessions) break;
+        var act = filterSessionsByDashboardFilters(sessions)
+            .filter(function(s) { return sessionState(s) === 'active'; });
+        var stillUnresolved = [];
+        for (var i = 0; i < remaining.length; i++) {
+            var ip = remaining[i];
+            // Bail out if a newer seed call superseded us (znGeoPendingIps was cleared).
+            if (!znGeoPendingIps.has(ip)) continue;
+            var iso = znCountryIsoForIpFromSessions(ip, act);
+            var centroid = iso ? znCentroidForCountryIso(iso) : null;
+            if (centroid) {
+                geoIpCache.set(ip, centroid);
+                geoCache[ip] = centroid;
+                geoIpMapPrecision.set(ip, 'country');
+                geoIpFailedIps.delete(ip);
+                znGeoPendingIps.delete(ip);
+                if (iso) {
+                    var lbl = znEnglishCountryLabelFromIso(iso);
+                    if (lbl) geoLabelCache[ip] = lbl;
+                }
+                updateMapProgressively(ip);
+            } else {
+                stillUnresolved.push(ip);
+            }
+        }
+        remaining = stillUnresolved;
+    }
+
+    // Hand off survivors to the public-provider queue (throttled, ~350 ms / IP).
+    // Remove from pending first so filter-change merges can re-queue if needed.
+    remaining.forEach(function(ip) { znGeoPendingIps.delete(ip); });
+    if (remaining.length) {
+        processSessionGeoIps(null, { onlyIps: remaining });
+    }
+}
+
+/**
  * Seeds geoIpCache / geoLabelCache with country-level coords (no public HTTP).
  * Call after country-centroids.json is loaded, before renderMap.
  */
@@ -1064,62 +1120,6 @@ function znMergeCountryGeoSeedForSessions(sessions) {
         }
     }
     if (unresolved.length) znResolveUnknownGeoIps(unresolved);
-}
-
-/**
- * Resolves geo for IPs whose country was not available from Zero session data.
- * Strategy:
- *   1. Re-read Zero session data up to ZN_GEO_ZERO_RETRIES times (the portal may
- *      enrich sessions asynchronously, so a later read can yield a country ISO).
- *   2. For any IPs still unresolved after those retries, hand off to the existing
- *      throttled public-provider queue (processSessionGeoIps), which tries all four
- *      public GeoIP services with back-off.
- * Successful resolutions call updateMapProgressively so dots pop onto the map
- * gradually without needing a full re-render.
- */
-async function znResolveUnknownGeoIps(ips) {
-    if (!ips || !ips.length) return;
-    var remaining = ips.slice();
-
-    for (var attempt = 0; attempt < ZN_GEO_ZERO_RETRIES && remaining.length; attempt++) {
-        if (attempt > 0) {
-            await new Promise(function(r) { setTimeout(r, ZN_GEO_ZERO_RETRY_MS); });
-        }
-        var sessions = lastData && lastData.ses;
-        if (!sessions) break;
-        var act = filterSessionsByDashboardFilters(sessions)
-            .filter(function(s) { return sessionState(s) === 'active'; });
-        var stillUnresolved = [];
-        for (var i = 0; i < remaining.length; i++) {
-            var ip = remaining[i];
-            // Bail out if a newer seed call superseded us (znGeoPendingIps was cleared).
-            if (!znGeoPendingIps.has(ip)) continue;
-            var iso = znCountryIsoForIpFromSessions(ip, act);
-            var centroid = iso ? znCentroidForCountryIso(iso) : null;
-            if (centroid) {
-                geoIpCache.set(ip, centroid);
-                geoCache[ip] = centroid;
-                geoIpMapPrecision.set(ip, 'country');
-                geoIpFailedIps.delete(ip);
-                znGeoPendingIps.delete(ip);
-                if (iso) {
-                    var lbl = znEnglishCountryLabelFromIso(iso);
-                    if (lbl) geoLabelCache[ip] = lbl;
-                }
-                updateMapProgressively(ip);
-            } else {
-                stillUnresolved.push(ip);
-            }
-        }
-        remaining = stillUnresolved;
-    }
-
-    // Hand off survivors to the public-provider queue (throttled, ~350 ms / IP).
-    // Remove from pending first so filter-change merges can re-queue if needed.
-    remaining.forEach(function(ip) { znGeoPendingIps.delete(ip); });
-    if (remaining.length) {
-        processSessionGeoIps(null, { onlyIps: remaining });
-    }
 }
 
 function znMapViewportWantsCityPrecision() {
