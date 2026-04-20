@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zero Networks | Connect Dashboard</title>
+    <link rel="stylesheet" href="libs/leaflet.css" />
+    <link rel="stylesheet" href="libs/MarkerCluster.css" />
+    <link rel="stylesheet" href="libs/MarkerCluster.Default.css" />
+    <script src="libs/chart.min.js"></script>
+    <script src="libs/leaflet.js"></script>
+    <script src="libs/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+    <div id="dashboard-auth-gate" class="dashboard-auth-gate" role="alertdialog" aria-modal="true" aria-labelledby="zn-auth-gate-title" aria-hidden="true">
+        <div class="dashboard-auth-gate-card">
+            <h2 id="zn-auth-gate-title">Session expired</h2>
+            <div id="zn-auth-gate-body">Your portal session is no longer valid. Sign in again to load the dashboard.</div>
+            <button type="button" id="zn-auth-gate-login">Continue to Zero Networks Portal</button>
+            <button type="button" class="zn-gate-manual-toggle" id="zn-gate-manual-toggle">Having trouble? Paste your token manually</button>
+            <div class="zn-gate-manual-section" id="zn-gate-manual-section">
+                <label for="zn-gate-token-input">Bearer token (from portal DevTools → Network → Authorization header)</label>
+                <textarea id="zn-gate-token-input" placeholder="Bearer eyJ..." spellcheck="false" autocomplete="off"></textarea>
+                <span class="zn-gate-manual-error" id="zn-gate-manual-error">Token looks too short — paste the full Authorization header value.</span>
+                <button type="button" class="zn-gate-manual-apply" id="zn-gate-manual-apply">Use this token</button>
+            </div>
+            <button type="button" id="zn-gate-dump-btn">🔍 Dump console &amp; debug info</button>
+        </div>
+    </div>
+
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="brand">ZERO</span><span class="brand-sub">Networks</span>
+        </div>
+        <div class="sidebar-body">
+            <div class="sidebar-section-label">Connect</div>
+            <nav class="sidebar-nav">
+                <a href="#">Dashboard</a>
+            </nav>
+        </div>
+    </aside>
+
+    <div class="main-col">
+        <header class="topbar" id="dashboard-page-header">
+            <div class="topbar-title-cluster">
+                <div class="topbar-connect-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    </svg>
+                </div>
+                <div class="topbar-breadcrumb-line"><span class="muted">Connect /</span></div>
+                <h1 class="topbar-page-title">Dashboard</h1>
+            </div>
+            <div class="topbar-controls">
+                <span style="font-size:0.72rem;color:#94a3b8;font-weight:600;">Latest Activity</span>
+                <button id="export-pdf-btn" title="Export dashboard as PDF">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="12" y1="18" x2="12" y2="12"/>
+                        <line x1="9" y1="15" x2="15" y2="15"/>
+                    </svg>
+                    Export PDF
+                </button>
+            </div>
+        </header>
+
+        <main id="dashboard-container" class="content dashboard-grid">
+
+            <!-- ── Global filters (user + region autocomplete) ── -->
+            <div class="filter-bar-card filter-bar-card--dual-search grid-full">
+                <div class="global-user-search">
+                    <label for="global-user-input">Search User:</label>
+                    <div class="autocomplete-wrapper">
+                        <input type="text" id="global-user-input" placeholder="Type a name..." autocomplete="off">
+                        <ul id="autocomplete-results" class="hidden" role="listbox" aria-label="User name suggestions"></ul>
+                        <button type="button" id="clear-user-search" class="hidden" aria-label="Clear search">✖</button>
+                    </div>
+                </div>
+                <div class="global-region-search">
+                    <label for="region-filter-input">Search Region:</label>
+                    <div class="autocomplete-wrapper">
+                        <input type="text" id="region-filter-input" placeholder="Type a region..." autocomplete="off">
+                        <ul id="region-autocomplete-results" class="hidden" role="listbox" aria-label="Region name suggestions"></ul>
+                        <button type="button" id="clear-region-search" class="hidden" aria-label="Clear search">✖</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── KPI tiles ────────────────────────────────────────────── -->
+            <div class="stats-grid grid-full">
+                <div class="card">
+                    <div class="kpi-header">
+                        <div class="card-label widget-title clickable-header cursor-pointer" id="header-license" title="Click to debug License Capacity data">License Capacity</div>
+                        <div class="kpi-icon kpi-icon-blue">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </div>
+                    </div>
+                    <div id="kpi-licenses" class="widget-primary-metric">&mdash; / &mdash;</div>
+                    <div class="license-bar-wrap"><div id="license-bar" class="license-bar" style="width:0%"></div></div>
+                </div>
+                <div class="card">
+                    <div class="kpi-header">
+                        <div class="card-label widget-title" id="header-kpi-sessions">Overall Sessions</div>
+                        <div class="kpi-icon kpi-icon-green">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </div>
+                    </div>
+                    <div id="kpi-sessions-trigger" class="kpi-value-clickable kpi-sessions-trigger-block" title="Click to view session breakdown">
+                        <div id="kpi-sessions-summary" class="kpi-sessions-summary">
+                            <span class="widget-primary-metric text-green" id="kpi-active-count">&mdash;</span>
+                            <span class="widget-secondary-text">Active /</span>
+                            <span class="widget-primary-metric text-slate" id="kpi-offline-count">&mdash;</span>
+                            <span class="widget-secondary-text">Offline</span><span class="info-tooltip"><span class="info-icon">?</span><span class="tooltip-text">User is Authenticated but not currently Connected.</span></span>
+                        </div>
+                    </div>
+                    <div class="kpi-trend" id="trend-active"></div>
+                </div>
+                <div class="card">
+                    <div class="kpi-header">
+                        <div class="card-label widget-title" id="header-region-health">Region Health</div>
+                        <div class="kpi-icon kpi-icon-green">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/><path d="M12 9v6l3 1.5"/></svg>
+                        </div>
+                    </div>
+                    <div id="kpi-regions-trigger" class="kpi-value-clickable" title="Click to view region details">
+                        <div id="regions-kpi" class="widget-primary-metric">&mdash;</div>
+                    </div>
+                    <div class="kpi-trend" id="regions-subtext" style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem; display: block;">Waiting for audit sync&hellip;</div>
+                </div>
+                <div class="card">
+                    <div class="kpi-header">
+                        <div class="card-label widget-title" id="header-posture">POSTURE</div>
+                        <div class="kpi-icon kpi-icon-indigo">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        </div>
+                    </div>
+                    <div id="kpi-posture-trigger" class="kpi-posture-trigger" title="Click to view posture details">
+                        <div class="kpi-posture-split">
+                            <div class="kpi-posture-row">
+                                <span class="kpi-posture-label">Always On</span>
+                                <span id="kpi-posture-always-on" class="widget-list-metric kpi-posture-accent">&mdash;</span>
+                            </div>
+                            <div class="kpi-posture-row">
+                                <span class="kpi-posture-label">Connect After Boot</span>
+                                <span id="kpi-posture-connect-after-boot" class="widget-list-metric kpi-posture-accent">&mdash;</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Left column: Audit Activity + Connectivity Map ──────────── -->
+            <div class="col-left">
+
+                <!-- Audit Activity chart -->
+                <div class="chart-card dau-chart-card">
+                    <div class="dau-chart-card-header-row">
+                        <div class="header-title-group">
+                            <h3 class="audit-activity-heading widget-title clickable-header cursor-pointer" id="header-audit-chart" title="Click to debug Audit Activity chart data">Audit Activity by</h3>
+                            <select id="activity-mode-select" aria-label="Audit Activity view">
+                                <option value="connect" selected>Session Creation by Region</option>
+                                <option value="sessions">Session Operations</option>
+                                <option value="policy">Policy Operations</option>
+                                <option value="region_health">Regions health</option>
+                            </select>
+                        </div>
+                        <div id="activity-range-pills" class="activity-range-pills-segmented" role="group" aria-label="Chart day range">
+                            <button type="button" class="activity-range-pill is-active" data-days="7">7 Days</button>
+                            <button type="button" class="activity-range-pill" data-days="14">14 Days</button>
+                            <button type="button" class="activity-range-pill" data-days="30">30 Days</button>
+                        </div>
+                    </div>
+                    <div class="audit-chart-inner">
+                        <div id="audit-chart-loading" class="audit-widget-loading is-active" aria-busy="true" aria-label="Loading Audit Activity chart">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <div class="loading-spinner-text">Loading 7-day data&hellip;</div>
+                        </div>
+                        <!-- Shown when user requests 14/30d before background fetch finishes -->
+                        <div id="audit-range-loading-overlay" class="chart-loading-overlay" aria-live="polite" aria-label="Loading extended audit data">
+                            <div class="clo-spinner" aria-hidden="true"></div>
+                            <span class="clo-label">Loading 30-day history&hellip;</span>
+                        </div>
+                        <canvas id="auditChart"></canvas>
+                    </div>
+                    <div id="dau-chart-legend" class="dau-html-legend dau-html-legend--below" role="toolbar" aria-label="Series — toggle visibility"></div>
+                </div>
+
+                <!-- Connectivity Map -->
+                <div class="map-card">
+                    <div class="section-header widget-title clickable-header cursor-pointer" id="header-map" title="Click to debug Connectivity Map data">Connectivity Map</div>
+                    <div class="map-overlay-ctrl">
+                        <button type="button" class="map-recenter-btn" id="map-recenter-btn" title="Reset zoom and center to the default view">Recenter</button>
+                        <div class="map-overlay-pill">
+                            <button type="button" class="map-mode-btn active" data-mode="both">Both</button>
+                            <button type="button" class="map-mode-btn" data-mode="servers">Regions</button>
+                            <button type="button" class="map-mode-btn" data-mode="users">Users</button>
+                        </div>
+                    </div>
+                    <div id="map"></div>
+                    <div id="map-geo-loading" role="status" aria-live="polite">
+                        <span class="map-geo-spinner" aria-hidden="true"></span>
+                        <span id="map-geo-loading-text">Processing sessions&hellip;</span>
+                    </div>
+                </div>
+
+            </div><!-- /.col-left -->
+
+            <!-- ── Right column: Insights + metrics widgets ───────────────── -->
+            <div class="col-right">
+
+                <!-- Insights -->
+                <div class="insights-card">
+                    <div class="section-header">
+                        <div class="insights-header-title-row">
+                            <span class="widget-title clickable-header cursor-pointer" id="header-insights" title="Click to debug Insights data">INSIGHTS</span>
+                            <button type="button" class="insights-logic-guide-btn" id="btn-insights-logic-guide" title="Insights &amp; Audit Logic Guide" aria-label="Open Insights and Audit Logic Guide">?</button>
+                        </div>
+                    </div>
+                    <ul id="insights-list">
+                        <li><span class="insight-dot blue"></span>
+                            <div><div class="insight-title">Loading&hellip;</div></div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- 2×2 metrics: Connect Versions, OS Distribution, Regions Load, Policy Names -->
+                <div class="metrics-2x2-grid">
+                    <div class="card">
+                        <div class="card-label widget-title clickable-header cursor-pointer" id="header-versions" title="Click to debug live session client versions">Connect Versions</div>
+                        <div id="card-versions" class="metric-scroll">
+                            <div class="audit-widget-loading-static" id="audit-versions-loading" aria-busy="true" aria-label="Loading client versions">
+                                <div class="loading-spinner" aria-hidden="true"></div>
+                                <div class="loading-spinner-text">Loading session data&hellip;</div>
+                                <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                                <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="card-label widget-title clickable-header cursor-pointer" id="header-os" title="Click to debug OS data (live active sessions)" style="margin-bottom:6px;">OS Distribution</div>
+                        <div class="audit-chart-inner os-accordion-wrap">
+                            <div id="os-chart-loading" class="audit-widget-loading is-active" aria-busy="true" aria-label="Loading OS distribution">
+                                <div class="loading-spinner" aria-hidden="true"></div>
+                                <div class="loading-spinner-text">Loading session data&hellip;</div>
+                            </div>
+                            <div id="card-os-accordion" class="os-accordion metric-scroll" role="region" aria-label="Operating system breakdown"></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label widget-title clickable-header cursor-pointer" id="header-regions" title="Click to debug session end events (types 97-99)">Regions Load</div>
+                        <div id="card-regions" class="metric-scroll">
+                            <div class="audit-widget-loading-static" id="audit-regions-loading" aria-busy="true" aria-label="Loading region load">
+                                <div class="loading-spinner" aria-hidden="true"></div>
+                                <div class="loading-spinner-text">Loading 30-day data&hellip;</div>
+                                <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                                <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label widget-title clickable-header cursor-pointer" id="header-policy" title="Click to debug Policy Names by Hits data">Policy Names by Hits</div>
+                        <div id="card-policy-rules" class="metric-scroll">
+                            <div class="audit-widget-loading-static" id="audit-policy-loading">
+                                <div class="loading-spinner" aria-hidden="true"></div>
+                                <div class="loading-spinner-text">Loading 30-day data&hellip;</div>
+                                <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                                <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /.col-right -->
+
+            <!-- ── Bottom row: Audit Operations + Overall Connected Time ─── -->
+            <div class="bottom-widget-row grid-full" style="display:none !important;">
+                <div class="card" style="display:flex;flex-direction:column;min-height:0;">
+                    <div class="card-label widget-title clickable-header cursor-pointer" id="header-audit-types" title="Click to debug Audit Operations (30-day paginated audits)">AUDIT OPERATIONS</div>
+                    <div id="card-audit-types" class="metric-scroll audit-types-list-host" style="flex:1;max-height:320px;" role="list" aria-live="polite">
+                        <div class="audit-widget-loading-static" id="audit-types-loading" aria-busy="true" aria-label="Loading audit operations">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <div class="loading-spinner-text">Loading 30-day data&hellip;</div>
+                            <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                            <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-label widget-title clickable-header cursor-pointer" id="header-conn-time" title="Click to debug Overall Connected Time data">OVERALL CONNECTED TIME</div>
+                    <div id="card-conn-time" class="metric-scroll">
+                        <div class="audit-widget-loading-static" id="audit-conn-time-loading">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <div class="loading-spinner-text">Loading 30-day data&hellip;</div>
+                            <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                            <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <div id="debug-bar">
+            <span>Zero Networks Dashboard (Beta)</span>
+            <span id="debug-token">Token: checking&hellip;</span>
+            <span id="debug-status"></span>
+        </div>
+    </div>
+
+    <!-- Active Sessions Drawer ──────────────────────────────────────────── -->
+    <div id="sessions-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="sessions-drawer-title">
+        <div class="sessions-drawer" id="sessions-drawer">
+            <div class="sessions-drawer-header">
+                <span class="sessions-drawer-title" id="sessions-drawer-title">Active Sessions</span>
+                <button type="button" class="sessions-drawer-close" id="sessions-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="sessions-drawer-stats" id="sessions-drawer-stats"></div>
+            <div class="drawer-distributions" id="sessions-drawer-distributions"></div>
+            <div class="drawer-search-wrapper">
+                <input type="text" id="sessions-drawer-search" class="drawer-search" placeholder="Search User or Country..." autocomplete="off">
+            </div>
+            <div class="ses-list-header ses-list-header--sortable" style="grid-template-columns:1.15fr 0.9fr 1fr">
+                <span class="sortable-header" data-sort="user">User &amp; Asset <span class="sort-indicator"></span></span>
+                <span class="sortable-header" data-sort="country">Country <span class="sort-indicator"></span></span>
+                <span class="sortable-header" data-sort="lastAuth">Last Auth <span class="sort-indicator"></span></span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="sessions-drawer-list"></div>
+        </div>
+    </div>
+
+    <!-- Region Health Drawer ────────────────────────────────────────────── -->
+    <div id="region-health-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="rh-drawer-title">
+        <div class="sessions-drawer" id="region-health-drawer">
+            <div class="sessions-drawer-header">
+                <span class="sessions-drawer-title" id="rh-drawer-title">Region Health</span>
+                <button type="button" class="sessions-drawer-close" id="rh-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="sessions-drawer-stats" id="rh-drawer-stats" style="grid-template-columns:repeat(2,1fr)"></div>
+            <div class="drawer-distributions" id="rh-drawer-distributions"></div>
+            <div class="sessions-drawer-list-wrap" id="rh-drawer-list"></div>
+        </div>
+    </div>
+
+    <!-- Posture Drawer ───────────────────────────────────────────────────── -->
+    <div id="posture-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="posture-drawer-title">
+        <div class="sessions-drawer" id="posture-drawer">
+            <div class="sessions-drawer-header">
+                <span class="sessions-drawer-title" id="posture-drawer-title">Posture</span>
+                <button type="button" class="sessions-drawer-close" id="posture-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="sessions-drawer-stats" id="posture-drawer-stats" style="grid-template-columns:repeat(3,1fr)"></div>
+            <div class="drawer-distributions" id="posture-drawer-distributions"></div>
+            <div class="ses-list-header" style="grid-template-columns:1fr 1fr auto auto">
+                <span>Asset (FQDN)</span><span>User</span><span>OS</span><span>Posture</span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="posture-drawer-list"></div>
+        </div>
+    </div>
+
+    <!-- Insight Drawer ──────────────────────────────────────────────────── -->
+    <div id="insight-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="insight-drawer-title">
+        <div class="sessions-drawer" id="insight-drawer">
+            <div class="sessions-drawer-header">
+                <span class="sessions-drawer-title" id="insight-drawer-title">Insight</span>
+                <button type="button" class="sessions-drawer-close" id="insight-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div id="insight-drawer-recommended" class="insight-drawer-recommended" style="display:none"></div>
+            <div class="drawer-search-wrapper">
+                <input type="text" id="insight-drawer-search" class="drawer-search" placeholder="Search Users or Assets..." autocomplete="off">
+            </div>
+            <div class="sessions-drawer-list-wrap" id="insight-drawer-table"></div>
+        </div>
+    </div>
+
+    <!-- Connect Versions Drawer ──────────────────────────────────────────── -->
+    <div id="connect-versions-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="cv-drawer-title">
+        <div class="sessions-drawer" id="connect-versions-drawer">
+            <div class="sessions-drawer-header">
+                <span class="sessions-drawer-title" id="cv-drawer-title">Version: [Dynamic]</span>
+                <button type="button" class="sessions-drawer-close" id="cv-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="sessions-drawer-stats" id="cv-drawer-stats" style="grid-template-columns:repeat(3,1fr)"></div>
+            <div class="drawer-distributions" id="cv-drawer-distributions"></div>
+            <div class="drawer-search-wrapper">
+                <input type="text" id="cv-drawer-search" class="drawer-search" placeholder="Search User..." autocomplete="off">
+            </div>
+            <div class="ses-list-header" style="grid-template-columns:1.5fr 1fr">
+                <span>User</span>
+                <span>Operating System</span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="cv-drawer-list"></div>
+        </div>
+    </div>
+
+    <!-- OS Distribution Drawer ──────────────────────────────────────────── -->
+    <div id="os-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="os-drawer-title">
+        <div class="sessions-drawer" id="os-drawer">
+            <div class="sessions-drawer-header">
+                <span class="sessions-drawer-title" id="os-drawer-title">OS: [Dynamic]</span>
+                <button type="button" class="sessions-drawer-close" id="os-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="sessions-drawer-stats" id="os-drawer-stats" style="grid-template-columns:repeat(3,1fr)"></div>
+            <div class="drawer-distributions" id="os-drawer-distributions"></div>
+            <div class="drawer-search-wrapper">
+                <input type="text" id="os-drawer-search" class="drawer-search" placeholder="Search User..." autocomplete="off">
+            </div>
+            <div class="ses-list-header" style="grid-template-columns:1fr 1fr 1fr 1fr">
+                <span>User</span>
+                <span>Specific OS</span>
+                <span>Connect Version</span>
+                <span>Status</span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="os-drawer-list"></div>
+        </div>
+    </div>
+
+    <!-- Policy Operations Drawer ────────────────────────────────────────── -->
+    <div id="policy-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="policy-drawer-title">
+        <div class="sessions-drawer" id="policy-drawer">
+            <div class="sessions-drawer-header">
+                <span class="sessions-drawer-title" id="policy-drawer-title">Audit Detail: Policy Operations</span>
+                <button type="button" class="sessions-drawer-close" id="policy-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="sessions-drawer-stats" id="policy-drawer-stats" style="grid-template-columns:1fr"></div>
+            <div id="policy-drawer-metadata" class="policy-metadata-section"></div>
+            <div id="policy-drawer-details" class="policy-details-section"></div>
+        </div>
+    </div>
+
+    <!-- Debug overlay (JSON accordion) — openDebugModal targets this; session/KV modals use #modal-backdrop -->
+    <div id="debug-modal-overlay" class="debug-modal-overlay" aria-hidden="true">
+        <div class="debug-modal-content" role="dialog" aria-modal="true" aria-labelledby="debug-modal-title-text">
+            <div class="debug-modal-top">
+                <span class="debug-modal-title" id="debug-modal-title-text">Debug</span>
+                <button type="button" class="debug-modal-close" id="debug-modal-close-btn" aria-label="Close">&times;</button>
+            </div>
+            <div class="debug-modal-meta" id="debug-modal-meta-strip">
+                <div><span style="font-weight:600;color:#64748b;font-size:0.7rem;text-transform:uppercase">API</span> <span id="debug-modal-api-wrap"><code id="debug-modal-api"></code></span></div>
+                <div><span style="font-weight:600;color:#64748b;font-size:0.7rem;text-transform:uppercase">Records</span> <span id="debug-modal-records"></span></div>
+            </div>
+            <div id="debug-modal-prepend" class="debug-modal-prepend"></div>
+            <div class="debug-modal-body-wrap">
+                <ul id="debug-accordion-list" class="debug-accordion-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Universal Debug Modal (#detailsModal) -->
+    <div id="modal-backdrop" class="modal-backdrop">
+        <div class="modal" id="detailsModal">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-title">Debug</span>
+                <button class="modal-close" id="modal-close-btn">&times;</button>
+            </div>
+            <!-- Metadata strip: API endpoint · record count · oldest date -->
+            <div class="modal-meta" id="modal-meta" style="display:none;"></div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Formatted HTML table drill-down (users / policy / OS / versions) -->
+    <div id="formatted-table-modal-backdrop" class="modal-backdrop" aria-hidden="true">
+        <div class="modal modal--wide-json" id="formatted-table-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="formatted-table-modal-title">
+            <div class="modal-header">
+                <span class="modal-title" id="formatted-table-modal-title">Details</span>
+                <button type="button" class="modal-close" id="formatted-table-modal-close-btn" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="zn-formatted-table-scroll" id="formatted-table-modal-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Raw JSON inspector (audits / sessions arrays) -->
+    <div id="json-inspector-backdrop" class="modal-backdrop" aria-hidden="true">
+        <div class="modal modal--wide-json" id="json-inspector-dialog" role="dialog" aria-modal="true" aria-labelledby="json-inspector-title">
+            <div class="modal-header">
+                <span class="modal-title" id="json-inspector-title">Raw Data</span>
+                <button type="button" class="modal-close" id="json-inspector-close-btn" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body modal-body--json">
+                <pre class="json-inspector-pre"><code id="json-inspector-code"></code></pre>
+            </div>
+        </div>
+    </div>
+
+    <div id="chart-detail-popover" class="hidden" role="dialog" aria-label="Chart details">
+        <button type="button" id="chart-detail-popover-close" aria-label="Close">&times;</button>
+        <h4 id="chart-detail-popover-title" class="chart-detail-popover-title"></h4>
+        <div id="chart-detail-popover-body"></div>
+    </div>
+
+    <script src="dashboard-logic.js"></script>
+</body>
+</html>

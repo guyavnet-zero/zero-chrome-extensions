@@ -1,0 +1,5 @@
+[     109ms] TypeError: Cannot read properties of undefined (reading 'local')
+    at getStoredToken (http://localhost:4321/dashboard.js:18:39)
+    at init (http://localhost:4321/dashboard.js:358:23)
+    at http://localhost:4321/dashboard.js:391:1
+[     168ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:4321/favicon.ico:0

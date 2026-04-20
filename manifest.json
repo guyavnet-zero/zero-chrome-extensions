@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "Zero Networks Dashboard (Beta)",
+  "description": "Injects a live Connect Dashboard into the Zero Networks admin portal.",
+  "version": "1.0.6",
+  "permissions": [
+    "storage",
+    "scripting",
+    "webRequest",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.zeronetworks.com/*",
+    "*://*.basemaps.cartocdn.com/*",
+    "*://*.cartocdn.com/*",
+    "*://*.freeipapi.com/*",
+    "*://ipinfo.io/*",
+    "https://ipapi.co/*",
+    "https://get.geojs.io/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://*.basemaps.cartocdn.com https://*.cartocdn.com data: blob:; connect-src 'self' https://*.zeronetworks.com https://*.basemaps.cartocdn.com https://*.freeipapi.com https://ipinfo.io https://ipapi.co https://get.geojs.io;"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.zeronetworks.com/*"],
+      "js": ["page-token-bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.zeronetworks.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "index.html",
+        "country-centroids.json",
+        "dashboard-logic.js",
+        "libs/chart.min.js",
+        "libs/leaflet.js",
+        "libs/leaflet.css",
+        "libs/images/layers.png",
+        "libs/images/layers-2x.png",
+        "libs/images/marker-icon.png",
+        "libs/images/marker-icon-2x.png",
+        "libs/images/marker-shadow.png"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

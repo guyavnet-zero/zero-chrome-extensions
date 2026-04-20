@@ -1,0 +1,213 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: ZERO.
+      - link "Back to main menu" [ref=e5] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e6]
+        - text: Back to main menu
+      - generic [ref=e8]:
+        - img [ref=e9]
+        - text: Connect
+      - link "Dashboard" [ref=e12] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e13]
+        - text: Dashboard
+      - link "Sessions" [ref=e18] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e19]
+        - text: Sessions
+      - link "Policies" [ref=e24] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e25]
+        - text: Policies
+      - link "Device Posture" [ref=e28] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e29]
+        - text: Device Posture
+    - generic [ref=e33]:
+      - link "Audit" [ref=e34] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e35]
+        - text: Audit
+      - link "Settings" [ref=e38] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e39]
+        - text: Settings
+      - generic [ref=e43]: No token
+  - generic [ref=e44]:
+    - banner [ref=e45]:
+      - generic [ref=e46]:
+        - generic [ref=e47]: Connect
+        - generic [ref=e48]: /
+        - generic [ref=e49]: Dashboard
+      - generic [ref=e50]:
+        - generic [ref=e51]:
+          - img
+          - textbox "Search for user…" [ref=e52]
+        - generic [ref=e53]:
+          - img
+          - textbox "Search for region…" [ref=e54]
+      - generic [ref=e55]:
+        - button "Export PDF" [ref=e56] [cursor=pointer]:
+          - img [ref=e57]
+          - text: Export PDF
+        - button "Sync Live Data" [ref=e59] [cursor=pointer]
+    - main [ref=e60]:
+      - generic [ref=e61]:
+        - article [ref=e62]:
+          - img [ref=e64]
+          - paragraph [ref=e66]: License capacity
+          - paragraph [ref=e67]: — out of —
+        - article [ref=e69]:
+          - img [ref=e71]
+          - paragraph [ref=e76]: Active sessions
+          - paragraph [ref=e77]: "0"
+          - paragraph [ref=e78]: out of 0 total
+        - article [ref=e79]:
+          - img [ref=e81]
+          - paragraph [ref=e84]: Disconnected devices
+          - paragraph [ref=e85]: "0"
+        - article [ref=e86]:
+          - img [ref=e88]
+          - paragraph [ref=e91]: Total audit events
+          - paragraph [ref=e92]: "0"
+      - article [ref=e93]:
+        - generic [ref=e94]:
+          - heading "Audit activity" [level=2] [ref=e95]
+          - generic [ref=e96]:
+            - generic [ref=e97]:
+              - combobox [ref=e98] [cursor=pointer]:
+                - option "Session creation by region" [selected]
+                - option "Session creation by OS"
+                - option "All audit events"
+              - img
+            - generic [ref=e99]:
+              - button "7 Days" [ref=e100] [cursor=pointer]
+              - button "14 Days" [ref=e101] [cursor=pointer]
+              - button "30 Days" [ref=e102] [cursor=pointer]
+      - generic [ref=e104]:
+        - article [ref=e105]:
+          - generic [ref=e106]:
+            - heading "Connectivity map" [level=2] [ref=e107]
+            - generic [ref=e108]:
+              - button "All connections" [ref=e109] [cursor=pointer]
+              - button "Regions" [ref=e110] [cursor=pointer]
+              - button "Users" [ref=e111] [cursor=pointer]
+          - generic [ref=e112]:
+            - img [ref=e113]:
+              - generic [ref=e115]: World map
+              - generic [ref=e116]: (connectivity data loads when token is available)
+              - generic [ref=e119]: "8"
+              - generic [ref=e122]: "20"
+              - generic [ref=e125]: "12"
+            - generic [ref=e128]:
+              - button [ref=e129] [cursor=pointer]:
+                - img [ref=e130]
+              - button [ref=e133] [cursor=pointer]:
+                - img [ref=e134]
+        - article [ref=e135]:
+          - generic [ref=e136]:
+            - heading "Insights" [level=2] [ref=e137]
+            - generic [ref=e138]:
+              - generic [ref=e139]: 20 critical
+              - generic [ref=e140]: 2 warning
+              - generic [ref=e141]: 8 info
+          - generic [ref=e142]:
+            - generic [ref=e143]:
+              - generic [ref=e145]:
+                - paragraph [ref=e146]: Always-on violation
+                - paragraph [ref=e147]: 20 active sessions have Always-on disabled. These assets can bypass mandatory security.
+              - generic [ref=e148]: "20"
+            - generic [ref=e149]:
+              - generic [ref=e151]:
+                - paragraph [ref=e152]: Legacy clients
+                - paragraph [ref=e153]: 2 active devices are below agent v4.0. Upgrade paths should be scheduled.
+              - generic [ref=e154]: "2"
+            - generic [ref=e155]:
+              - generic [ref=e157]:
+                - paragraph [ref=e158]: Connecting flapping
+                - paragraph [ref=e159]: 8 users experienced multiple reconnects within a 24 hour period.
+              - generic [ref=e160]: "8"
+            - generic [ref=e161]:
+              - generic [ref=e163]:
+                - paragraph [ref=e164]: Sub-optimal routing
+                - paragraph [ref=e165]: Some sessions are routing through non-optimal region endpoints.
+              - generic [ref=e166]: "0"
+      - generic [ref=e167]:
+        - article [ref=e168]:
+          - heading "Connect versions" [level=2] [ref=e169]
+          - generic [ref=e170]:
+            - generic [ref=e171]:
+              - generic [ref=e172]: v4.0.9.0
+              - generic [ref=e175]: "53"
+            - generic [ref=e176]:
+              - generic [ref=e177]: v4.0.10.0
+              - generic [ref=e180]: "32"
+            - generic [ref=e181]:
+              - generic [ref=e182]: v3.4.12.0
+              - generic [ref=e185]: "10"
+            - generic [ref=e186]:
+              - generic [ref=e187]: v3.3.0.0
+              - generic [ref=e190]: "2"
+        - article [ref=e191]:
+          - heading "OS distribution" [level=2] [ref=e192]
+        - article [ref=e195]:
+          - heading "Regions load" [level=2] [ref=e196]
+          - generic [ref=e197]:
+            - generic [ref=e198]:
+              - text: IL backup
+              - strong [ref=e199]: —
+              - text: avg
+            - generic [ref=e200]:
+              - text: IL
+              - strong [ref=e201]: —
+              - text: avg
+            - generic [ref=e202]:
+              - text: Colo
+              - strong [ref=e203]: —
+              - text: avg
+      - generic [ref=e205]:
+        - article [ref=e206]:
+          - heading "Policies by hits" [level=2] [ref=e207]
+          - generic [ref=e208]:
+            - generic [ref=e209]:
+              - generic [ref=e210]: Employees
+              - generic [ref=e213]: 272 (76%)
+            - generic [ref=e214]:
+              - generic [ref=e215]: Data team employees
+              - generic [ref=e218]: 31 (9%)
+            - generic [ref=e219]:
+              - generic [ref=e220]: Zero demo
+              - generic [ref=e223]: 27 (8%)
+            - generic [ref=e224]:
+              - generic [ref=e225]: Maya demo
+              - generic [ref=e228]: 24 (7%)
+            - generic [ref=e229]:
+              - generic [ref=e230]: Maya demo
+              - generic [ref=e233]: 5 (1%)
+        - article [ref=e234]:
+          - heading "Overall connected time" [level=2] [ref=e235]
+      - generic [ref=e236]:
+        - article [ref=e237]:
+          - heading "Live Sessions" [level=2] [ref=e239]
+          - table [ref=e241]:
+            - rowgroup [ref=e242]:
+              - row "Status User Asset OS Public IP" [ref=e243]:
+                - columnheader "Status" [ref=e244]
+                - columnheader "User" [ref=e245]
+                - columnheader "Asset" [ref=e246]
+                - columnheader "OS" [ref=e247]
+                - columnheader "Public IP" [ref=e248]
+            - rowgroup
+        - article [ref=e249]:
+          - heading "Compliance & Audit Governance" [level=2] [ref=e250]
+          - table [ref=e252]:
+            - rowgroup [ref=e253]:
+              - row "Timestamp Initiator Affected Entity Event ID" [ref=e254]:
+                - columnheader "Timestamp" [ref=e255]
+                - columnheader "Initiator" [ref=e256]
+                - columnheader "Affected Entity" [ref=e257]
+                - columnheader "Event ID" [ref=e258]
+            - rowgroup
+  - generic [ref=e259] [cursor=pointer]: Feedback

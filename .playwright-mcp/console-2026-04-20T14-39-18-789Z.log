@@ -1,0 +1,4 @@
+[      75ms] TypeError: Cannot read properties of undefined (reading 'local')
+    at getStoredToken (http://localhost:4321/dashboard.js:18:39)
+    at init (http://localhost:4321/dashboard.js:358:23)
+    at http://localhost:4321/dashboard.js:391:1
