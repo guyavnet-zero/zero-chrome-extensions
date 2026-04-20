@@ -192,61 +192,115 @@ body {
     position: relative;
     z-index: 10;        /* sits above content but never escapes the iframe */
 }
-.topbar-controls { display: flex; align-items: center; gap: 12px; }
-/* Match portal Connect / Sessions header: icon + stacked breadcrumb / page title */
-#dashboard-page-header.topbar {
-    height: auto;
-    min-height: 56px;
-    padding: 14px 24px;
-    align-items: center;
-}
-/* Grid matches portal Connect / Sessions: one text column beside a row-spanning icon */
-.topbar-title-cluster {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
-    column-gap: 12px;
-    row-gap: 2px;
-    align-items: center;
-    min-width: 0;
-}
-.topbar-connect-icon {
-    grid-row: 1 / -1;
-    align-self: center;
-    width: 36px;
-    height: 36px;
+/* ── Topbar breadcrumb (Figma: "Connect / Dashboard" one-liner) ── */
+.topbar-breadcrumb {
     display: flex;
     align-items: center;
-    justify-content: center;
-    color: #00df9a;
+    gap: 6px;
+    flex-shrink: 0;
 }
-.topbar-connect-icon svg {
-    width: 22px;
-    height: 22px;
-}
-.topbar-breadcrumb-line {
-    grid-column: 2;
-    grid-row: 1;
-    min-width: 0;
-    line-height: 1.2;
-}
-.topbar-breadcrumb-line .muted {
-    color: #64748b;
+.topbar-bc-parent {
     font-size: 0.8125rem;
+    color: #64748b;
     font-weight: 500;
 }
-.topbar-page-title {
-    grid-column: 2;
-    grid-row: 2;
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-    font-size: 1.25rem;
+.topbar-bc-sep {
+    font-size: 0.8125rem;
+    color: #94a3b8;
+}
+.topbar-bc-current {
+    font-size: 0.9375rem;
     font-weight: 700;
     color: #1a233a;
-    line-height: 1.25;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.015em;
 }
+
+/* ── Topbar center: inline search inputs ─────────────────────── */
+.topbar-center {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    margin: 0 16px;
+    min-width: 0;
+}
+.search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    max-width: 220px;
+}
+.search-icon {
+    position: absolute;
+    left: 9px;
+    color: #94a3b8;
+    pointer-events: none;
+    flex-shrink: 0;
+}
+.search-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 28px 0 30px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-family: inherit;
+    color: #1e293b;
+    background: #f8fafc;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+}
+.search-input::placeholder { color: #94a3b8; }
+.search-input:focus {
+    border-color: #00df9a;
+    background: #fff;
+}
+.search-clear {
+    position: absolute;
+    right: 7px;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.7rem;
+    padding: 2px;
+    line-height: 1;
+}
+.search-clear:hover { color: #64748b; }
+
+/* ── Topbar right: actions cluster ──────────────────────────── */
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+.topbar-latest-label {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.btn-export {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 30px;
+    padding: 0 12px;
+    background: #1a233a;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+.btn-export:hover { background: #0f172a; }
+
 
 /* ── Period toggle ────────────────────────────────────────────── */
 .period-toggle {
@@ -978,10 +1032,11 @@ body {
     margin: 0;
     padding: 4px 0;
     list-style: none;
-    background: #1e293b;
-    color: #fff;
+    background: #fff;
+    color: #1e293b;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     z-index: 1000;
     max-height: 200px;
     overflow-y: auto;
@@ -992,16 +1047,17 @@ body {
 }
 #autocomplete-results li,
 #region-autocomplete-results li {
-    padding: 8px 12px;
-    font-size: 0.82rem;
+    padding: 7px 12px;
+    font-size: 0.78rem;
     cursor: pointer;
     line-height: 1.35;
+    color: #1e293b;
 }
 #autocomplete-results li:hover,
 #autocomplete-results li:focus,
 #region-autocomplete-results li:hover,
 #region-autocomplete-results li:focus {
-    background: rgba(255, 255, 255, 0.1);
+    background: #f1f5f9;
     outline: none;
 }
 .metric-placeholder { color: #94a3b8; font-size: 0.8rem; font-style: italic; }

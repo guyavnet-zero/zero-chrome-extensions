@@ -43,20 +43,35 @@
 
     <div class="main-col">
         <header class="topbar" id="dashboard-page-header">
-            <div class="topbar-title-cluster">
-                <div class="topbar-connect-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                    </svg>
-                </div>
-                <div class="topbar-breadcrumb-line"><span class="muted">Connect /</span></div>
-                <h1 class="topbar-page-title">Dashboard</h1>
+            <div class="topbar-breadcrumb">
+                <span class="topbar-bc-parent">Connect</span>
+                <span class="topbar-bc-sep">/</span>
+                <span class="topbar-bc-current">Dashboard</span>
             </div>
-            <div class="topbar-controls">
-                <span style="font-size:0.72rem;color:#94a3b8;font-weight:600;">Latest Activity</span>
-                <button id="export-pdf-btn" title="Export dashboard as PDF">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <div class="topbar-center">
+                <div class="search-wrap">
+                    <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.4"/>
+                        <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                    </svg>
+                    <input type="text" id="global-user-input" class="search-input" placeholder="Search User…" autocomplete="off" aria-label="Search user">
+                    <ul id="autocomplete-results" class="hidden" role="listbox" aria-label="User name suggestions"></ul>
+                    <button type="button" id="clear-user-search" class="search-clear hidden" aria-label="Clear search">✕</button>
+                </div>
+                <div class="search-wrap">
+                    <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.4"/>
+                        <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                    </svg>
+                    <input type="text" id="region-filter-input" class="search-input" placeholder="Search Region…" autocomplete="off" aria-label="Search region">
+                    <ul id="region-autocomplete-results" class="hidden" role="listbox" aria-label="Region name suggestions"></ul>
+                    <button type="button" id="clear-region-search" class="search-clear hidden" aria-label="Clear search">✕</button>
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <span class="topbar-latest-label">Latest Activity</span>
+                <button id="export-pdf-btn" class="btn-export" title="Export dashboard as PDF">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                         <polyline points="14 2 14 8 20 8"/>
                         <line x1="12" y1="18" x2="12" y2="12"/>
@@ -68,26 +83,6 @@
         </header>
 
         <main id="dashboard-container" class="content dashboard-grid">
-
-            <!-- ── Global filters (user + region autocomplete) ── -->
-            <div class="filter-bar-card filter-bar-card--dual-search grid-full">
-                <div class="global-user-search">
-                    <label for="global-user-input">Search User:</label>
-                    <div class="autocomplete-wrapper">
-                        <input type="text" id="global-user-input" placeholder="Type a name..." autocomplete="off">
-                        <ul id="autocomplete-results" class="hidden" role="listbox" aria-label="User name suggestions"></ul>
-                        <button type="button" id="clear-user-search" class="hidden" aria-label="Clear search">✖</button>
-                    </div>
-                </div>
-                <div class="global-region-search">
-                    <label for="region-filter-input">Search Region:</label>
-                    <div class="autocomplete-wrapper">
-                        <input type="text" id="region-filter-input" placeholder="Type a region..." autocomplete="off">
-                        <ul id="region-autocomplete-results" class="hidden" role="listbox" aria-label="Region name suggestions"></ul>
-                        <button type="button" id="clear-region-search" class="hidden" aria-label="Clear search">✖</button>
-                    </div>
-                </div>
-            </div>
 
             <!-- ── KPI tiles ────────────────────────────────────────────── -->
             <div class="stats-grid grid-full">

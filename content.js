@@ -482,33 +482,11 @@
       "{background:transparent!important;background-color:transparent!important;" +
       "box-shadow:none!important;opacity:0!important;}" +
 
-      // Also cover :has() — targets the wrapper when only the child link has the active class.
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item:has(.router-link-active)," +
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item:has(.router-link-exact-active)," +
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item:has(.router-link-active)," +
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item:has(.router-link-exact-active)" +
-      "{background:transparent!important;background-color:transparent!important;box-shadow:none!important;}" +
-
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item:has(.router-link-active)::before," +
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item:has(.router-link-exact-active)::before," +
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item:has(.router-link-active)::after," +
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item:has(.router-link-exact-active)::after," +
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item:has(.router-link-active)::before," +
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item:has(.router-link-exact-active)::before," +
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item:has(.router-link-active)::after," +
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item:has(.router-link-exact-active)::after" +
-      "{background:transparent!important;background-color:transparent!important;" +
-      "box-shadow:none!important;opacity:0!important;}" +
-
       // ROOT CAUSE (confirmed by diagnostic): the green highlight is on div.zn-sidebar-item-base
       // (bg: rgb(12,216,155)) — a child INSIDE the <a> tag. All previous rules targeted the <a>
       // and its ancestors, but missed this inner element. Target it directly.
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item-base," +
-      "html.zn-dashboard-beta-active .zn-sidebar .zn-sidebar-item-base__icon" +
-      "{background:transparent!important;background-color:transparent!important;}" +
-
-      // Also neutralise any color the icon picks up from the active state,
-      // so the icon renders in the same muted tone as inactive items.
+      // IMPORTANT: Scope to the ACTIVE anchor only — applying background:transparent to ALL
+      // .zn-sidebar-item-base elements breaks label rendering on non-active items.
       "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base," +
       "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base__icon," +
       "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base svg," +
