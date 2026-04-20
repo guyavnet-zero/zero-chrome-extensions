@@ -1,0 +1,43 @@
+# Example Kubernetes CronJob: refresh MaxMind GeoLite2-Country twice weekly.
+# Mount the same volume into log-ingestor and set GEOIP_COUNTRY_DB_PATH to the
+# file inside the pod (e.g. /var/lib/geoip/GeoLite2-Country.mmdb).
+#
+# Secret maxmind-geoip-config: key GeoIP.conf (contents like GeoIP.conf.example).
+# Adjust schedule, PVC name, and image tag for your cluster.
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: geoip-country-update
+spec:
+  schedule: "0 6 * * 1,4"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          volumes:
+            - name: geoip-data
+              persistentVolumeClaim:
+                claimName: geoip-country-pvc
+            - name: geoip-config
+              secret:
+                secretName: maxmind-geoip-config
+                items:
+                  - key: GeoIP.conf
+                    path: GeoIP.conf
+          containers:
+            - name: geoipupdate
+              image: maxmindinc/geoipupdate:v6.1
+              args:
+                - "-f"
+                - "/etc/geoip/GeoIP.conf"
+              volumeMounts:
+                - name: geoip-data
+                  mountPath: /var/lib/geoip
+                - name: geoip-config
+                  mountPath: /etc/geoip
+                  readOnly: true

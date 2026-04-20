@@ -1,0 +1,11 @@
+# Copy to GeoIP.conf (geoipupdate v6+). Fill AccountID and LicenseKey from
+# https://www.maxmind.com/en/accounts/current/license-key
+# EditionIDs must match what you download (GeoLite2-Country for free tier).
+#
+# After geoipupdate runs, point log-ingestor at the DB file, e.g.:
+#   GEOIP_COUNTRY_DB_PATH=/var/lib/geoip/GeoLite2-Country.mmdb
+
+AccountID YOUR_MAXMIND_ACCOUNT_ID
+LicenseKey YOUR_MAXMIND_LICENSE_KEY
+EditionIDs GeoLite2-Country
+DatabaseDirectory /var/lib/geoip
