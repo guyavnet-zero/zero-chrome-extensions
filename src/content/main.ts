@@ -1,5 +1,10 @@
+// @ts-nocheck
 (function () {
   "use strict";
+
+  function isExtensionContextValid() {
+    try { return !!chrome.runtime?.id; } catch (_) { return false; }
+  }
 
   // Forward tokens relayed by page-token-bridge.js (MAIN world) to the
   // background service worker so it can persist them in chrome.storage.local.
@@ -8,19 +13,31 @@
     if (!event.data || event.data.type !== "ZN_TOKEN_CAPTURED") return;
     var token = event.data.token;
     if (!token || String(token).trim().length < 24) return;
+    if (!isExtensionContextValid()) return;
     try {
       chrome.runtime.sendMessage({ type: "ZN_TOKEN_CAPTURED", token: String(token).trim(), host: location.hostname });
-    } catch (e) { /* extension context may not be ready yet */ }
+    } catch (_) {}
   });
 
+  // #region agent log — relay debug logs from MAIN world through to background.js
+  window.addEventListener("message", function (event) {
+    if (event.source !== window) return;
+    if (!event.data || event.data.type !== "ZN_DBG_717b26") return;
+    if (!isExtensionContextValid()) return;
+    try { chrome.runtime.sendMessage({ type: "ZN_DBG_717b26", payload: event.data.payload }); } catch (_) {}
+  });
+  // #endregion
 
   // Tell the page to fire a fresh authenticated API call so background.js
   // can intercept it and store a new token in chrome.storage.
   chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    if (request.action === 'triggerFreshApiCall') {
-      window.postMessage({ type: 'ZN_TRIGGER_FRESH_API' }, '*');
-      sendResponse({ ok: true });
-    }
+    if (!isExtensionContextValid()) return false;
+    try {
+      if (request.action === 'triggerFreshApiCall') {
+        window.postMessage({ type: 'ZN_TRIGGER_FRESH_API' }, '*');
+        sendResponse({ ok: true });
+      }
+    } catch (_) {}
     return false;
   });
 
@@ -463,9 +480,7 @@
       // highlight must come from a ::before/::after pseudo-element (common in Vue/Angular
       // scoped CSS for active-state indicators). Reset those and also clear box-shadow/border.
       // IMPORTANT: Only target pseudo-elements on ACTIVE items — targeting all items would
-      // wipe out hover shadows and cause label visual glitches on non-active rows. Same rule
-      // applies below: only use background-color (not the background shorthand) so we don't
-      // reset background-image/background-clip used by the portal for label text rendering.
+      // wipe out hover shadows and cause label visual glitches on non-active rows.
       "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item.router-link-active::before," +
       "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item.router-link-active::after," +
       "html.zn-dashboard-beta-active .zn-sidebar .zn-main-drill-down__content__item.router-link-exact-active::before," +
@@ -614,43 +629,6 @@
     return null;
   }
 
-  // ── ZN topbar height detection ────────────────────────────────────────────
-  // Measure the host app's fixed top navigation bar so our iframe mount starts
-  // below it, leaving the "System is learning" / ? / user indicators visible.
-
-  function getZnTopBarHeight() {
-    const specificSelectors = [
-      ".zn-top-bar", "zn-top-bar", ".zn-header", ".zn-navbar",
-      ".mat-toolbar.zn-topbar", "[data-cy='topbar']", "[data-testid='topbar']",
-    ];
-    for (const sel of specificSelectors) {
-      const el = document.querySelector(sel);
-      if (el) {
-        const r = el.getBoundingClientRect();
-        if (r.height > 20 && r.top <= 4 && r.width > window.innerWidth * 0.5) {
-          return Math.round(r.bottom);
-        }
-      }
-    }
-    // Generic: any header/toolbar pinned to the top edge spanning most of the viewport
-    const candidates = document.querySelectorAll(
-      "header, mat-toolbar, [class*='topbar'], [class*='top-bar'], [class*='toolbar'], [class*='navbar']"
-    );
-    for (const el of candidates) {
-      const r = el.getBoundingClientRect();
-      if (
-        r.top <= 4 &&
-        r.left <= window.innerWidth * 0.3 &&
-        r.width > window.innerWidth * 0.5 &&
-        r.height > 20 &&
-        r.height < 120
-      ) {
-        return Math.round(r.bottom);
-      }
-    }
-    return 0;
-  }
-
   // ── Sidebar width detection ───────────────────────────────────────────────
 
   // Remember the last good sidebar width so we never fall back to 0
@@ -692,19 +670,12 @@
     return _lastKnownSidebarRight || 0;
   }
 
-  // Keep the dashboard iframe's left/top edge aligned with the host app layout
-  function syncDashboardPosition() {
+  // Keep the dashboard iframe's left edge aligned with the sidebar if it resizes
+  function syncDashboardLeft() {
     const mount = document.getElementById(MOUNT_ID);
     if (!mount || mount.style.display === "none") return;
     const right = getSidebarRight();
     if (right > 0) mount.style.left = right + "px";
-    const topH = getZnTopBarHeight();
-    if (topH > 0) mount.style.top = topH + "px";
-  }
-
-  // Keep the dashboard iframe's left edge aligned with the sidebar if it resizes
-  function syncDashboardLeft() {
-    syncDashboardPosition();
   }
 
   // ── Active-item highlight reset (JS override) ────────────────────────────
@@ -777,25 +748,24 @@
     }
 
     const leftOffset = getSidebarRight();
-    const topOffset  = getZnTopBarHeight();
 
     const mount = document.createElement("div");
     mount.id    = MOUNT_ID;
     mount.setAttribute('data-zn-dashboard-mount', 'true');
     Object.assign(mount.style, {
       position:   "fixed",
-      top:        (topOffset > 0 ? topOffset : 0) + "px",
+      top:        "0",
       left:       leftOffset + "px",
       right:      "0",
       bottom:     "0",
-      zIndex:     "999999",
+      zIndex:     "999999", // Higher z-index to ensure it's on top
       background: "#f4f6f8",
       overflow:   "hidden",
-      pointerEvents: "auto",
+      pointerEvents: "auto", // Ensure interaction works
     });
 
     const iframe = document.createElement("iframe");
-    iframe.src   = chrome.runtime.getURL("index.html") + "?portalHost=" + encodeURIComponent(location.origin);
+    iframe.src   = chrome.runtime.getURL("pages/connect/index.html") + "?portalHost=" + encodeURIComponent(location.origin);
     iframe.setAttribute('data-zn-dashboard-iframe', 'true');
     Object.assign(iframe.style, {
       width:   "100%",
@@ -1114,7 +1084,7 @@
   // the user can call  znDiagnoseSidebarLabel()  directly in the portal tab's console.
   (function injectDiagnostic() {
     if (document.getElementById("zn-sidebar-diag-script")) return;
-    var s = document.createElement("script");
+    const s = document.createElement("script");
     s.id = "zn-sidebar-diag-script";
     s.textContent = /* js */`
 (function() {

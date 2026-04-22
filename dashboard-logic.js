@@ -2625,16 +2625,38 @@ function customRichTooltip(context) {
     var rows = dataPoints.map(function(dp) {
         var lab = dp.dataset && dp.dataset.label != null ? String(dp.dataset.label) : '';
         var val = dp.parsed && dp.parsed.y !== undefined ? dp.parsed.y : dp.raw;
-        var bg = dp.dataset && dp.dataset.backgroundColor;
-        if (Array.isArray(bg)) bg = bg[0];
-        bg = bg != null ? String(bg) : '#94a3b8';
+        var bc = dp.dataset && dp.dataset.borderColor;
+        if (Array.isArray(bc)) bc = bc[0];
+        bc = bc != null ? String(bc) : '#94a3b8';
         return '<div class="zn-rich-tooltip-row">' +
-            '<span class="color-box" style="background:' + znRichTooltipEscapeHtml(bg) + '"></span>' +
+            '<span class="color-box" style="background:' + znRichTooltipEscapeHtml(bc) + '"></span>' +
             '<span class="zn-rich-tooltip-label">' + znRichTooltipEscapeHtml(lab) + '</span>' +
             '<span class="zn-rich-tooltip-val">' + znRichTooltipEscapeHtml(String(val)) + '</span></div>';
     }).join('');
 
-    tooltipEl.innerHTML = rows;
+    var headerHtml = escDate ? '<div class="zn-rich-tooltip-date">' + escDate + '</div>' : '';
+
+    var insightsHtml = '';
+    if (ttMode === 'connect' && znAuditActivityConnectDailyInsights && dateLabel) {
+        var ins = znAuditActivityConnectDailyInsights[dateLabel];
+        if (ins) {
+            var uniqueCount = ins.uniqueUserCount || 0;
+            var polBr = ins.policyBreakdown || {};
+            var topPols = Object.keys(polBr)
+                .sort(function(a, b) { return (polBr[b] || 0) - (polBr[a] || 0); })
+                .slice(0, 2);
+            var topPolsStr = topPols.length
+                ? topPols.map(function(p) { return znRichTooltipEscapeHtml(p); }).join(', ')
+                : '\u2014';
+            insightsHtml = '<hr class="zn-rich-tooltip-hr">' +
+                '<div class="zn-rich-tooltip-insight user-link" data-date="' + znRichTooltipEscapeHtml(dateLabel) + '">' +
+                'Unique users: <strong>' + uniqueCount + '</strong></div>' +
+                '<div class="zn-rich-tooltip-insight policy-link" data-date="' + znRichTooltipEscapeHtml(dateLabel) + '">' +
+                'Top policies: <strong>' + topPolsStr + '</strong></div>';
+        }
+    }
+
+    tooltipEl.innerHTML = headerHtml + rows + insightsHtml;
 
     tooltipEl.style.opacity = '1';
     tooltipEl.style.visibility = 'visible';
@@ -3695,12 +3717,12 @@ function renderActivityExplorerChart(allItems, period) {
                     return t;
                 }),
                 borderColor: '#00df9a',
-                backgroundColor: 'rgba(0,223,154,0.32)',
+                backgroundColor: 'rgba(0,223,154,0.12)',
                 fill: true,
                 tension: 0.4,
                 pointRadius: 0,
                 pointHoverRadius: 4,
-                borderWidth: 0
+                borderWidth: 2
             }];
         } else {
             datasets = regionsSorted.map(function(reg, i) {
@@ -3709,17 +3731,17 @@ function renderActivityExplorerChart(allItems, period) {
                     label: reg,
                     data: perBucket.map(function(byReg) { return byReg[reg] || 0; }),
                     borderColor: hex,
-                    backgroundColor: hexToRgba(hex, 0.42),
+                    backgroundColor: hexToRgba(hex, 0.12),
                     fill: true,
                     tension: 0.4,
                     pointRadius: 0,
-                    pointHoverRadius: 3,
-                    borderWidth: 0
+                    pointHoverRadius: 4,
+                    borderWidth: 2
                 };
             });
         }
-        chartOptions.scales.x.stacked = true;
-        chartOptions.scales.y.stacked = true;
+        chartOptions.scales.x.stacked = false;
+        chartOptions.scales.y.stacked = false;
         if (chartOptions.scales.y.title) chartOptions.scales.y.title.text = 'Unique users';
 
         znAuditActivityConnectDailyInsights = buildConnectModeDailyInsightsFromType96(poolItems, timeBuckets);
@@ -7967,6 +7989,9 @@ function readStoredZnToken(callback) {
             var tokens = (result && result.znTokens) || {};
             var entry = tokens[ZN_PORTAL_HOSTNAME];
             var t = coerceDashBearerToken(entry && entry.token);
+            // #region agent log
+            try { chrome.runtime.sendMessage({type:'ZN_DBG_717b26',payload:{sessionId:'717b26',location:'dashboard-logic.js:readStoredZnToken',message:'Token lookup complete',data:{hostname:ZN_PORTAL_HOSTNAME,hasToken:!!t,tokenLen:t?t.length:0,capturedAt:(entry&&entry.at)||0,ageMs:entry&&entry.at?(Date.now()-entry.at):null,allHosts:Object.keys(tokens)},hypothesisId:'H-A',timestamp:Date.now()}}); } catch(e) {}
+            // #endregion
             if (t) { callback(t); return; }
             // Legacy fallback for installs that still have the old flat znToken key
             try {
@@ -7980,7 +8005,74 @@ function readStoredZnToken(callback) {
     }
 }
 
-// ── 10. Main data loader ───────────────────────────────────────────────────
+// ── 10. Topbar widgets data loader ─────────────────────────────────────────
+function loadTopbarWidgets(bearer) {
+    if (!bearer) return;
+
+    // User profile → avatar initials + tooltip
+    fetchAPI(bearer, ZN_API_BASE + '/api/v1/profile')
+        .then(function(profileData) {
+            var initialsEl = document.getElementById('topbar-avatar-initials');
+            var avatarEl   = document.getElementById('topbar-avatar');
+            if (!initialsEl) return;
+            var name = (profileData && (profileData.name || (profileData.user && profileData.user.name))) || '';
+            if (name) {
+                var initials = name.trim().split(/\s+/).map(function(n){ return n[0]; }).join('').toUpperCase().slice(0,2);
+                initialsEl.textContent = initials;
+                if (avatarEl) avatarEl.title = name;
+            }
+        })
+        .catch(function(){});
+
+    // System health indicator
+    fetchAPI(bearer, ZN_API_BASE + '/api/v1/environments/system-health')
+        .then(function(healthData) {
+            var healthWrap  = document.getElementById('topbar-health');
+            var healthDot   = document.getElementById('topbar-health-dot');
+            var healthLabel = document.getElementById('topbar-health-label');
+            if (!healthWrap) return;
+            healthWrap.classList.remove('hidden');
+            // response is {hasIssues: bool} or {issues: [...]}
+            var hasIssues = healthData && (healthData.hasIssues || (Array.isArray(healthData.issues) && healthData.issues.length > 0) || healthData.has_issues);
+            if (hasIssues) {
+                if (healthDot)   { healthDot.classList.remove('health-dot-healthy'); healthDot.classList.add('health-dot-unhealthy'); }
+                if (healthLabel)   healthLabel.textContent = 'Issues';
+                healthWrap.title = 'System Health: Issues detected';
+            } else {
+                if (healthDot)   { healthDot.classList.remove('health-dot-unhealthy'); healthDot.classList.add('health-dot-healthy'); }
+                if (healthLabel)   healthLabel.textContent = 'Healthy';
+                healthWrap.title = 'System Health: Healthy';
+            }
+        })
+        .catch(function(){});
+
+    // "System is learning" badge
+    fetchAPI(bearer, ZN_API_BASE + '/api/v1/ai/next-batch')
+        .then(function(learningData) {
+            var badge = document.getElementById('topbar-learning');
+            if (!badge) return;
+            // response: {nextBatchTime: ...} — badge is visible whenever the endpoint succeeds with a future batch time
+            var active = learningData && (learningData.learning_active || learningData.nextBatchTime || learningData.next_batch_time);
+            if (active) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        })
+        .catch(function(){});
+
+    // Help link via Gitbook token
+    fetchAPI(bearer, ZN_API_BASE + '/api/v1/gitbook/token')
+        .then(function(gitbookData) {
+            var helpLink = document.getElementById('topbar-help-link');
+            if (!helpLink) return;
+            var url = gitbookData && (gitbookData.gitbook_url || gitbookData.url || gitbookData.token_url);
+            if (url) helpLink.href = url;
+        })
+        .catch(function(){});
+}
+
+// ── 11. Main data loader ───────────────────────────────────────────────────
 // License + sessions first (fast path); paginated audit runs in the background.
 async function loadDashboard(token) {
     window.__znDash401Handled = false;
@@ -7992,6 +8084,9 @@ async function loadDashboard(token) {
     }
 
     var bearer = coerceDashBearerToken(token);
+    // #region agent log
+    try { chrome.runtime.sendMessage({type:'ZN_DBG_717b26',payload:{sessionId:'717b26',location:'dashboard-logic.js:loadDashboard',message:'loadDashboard called',data:{hasToken:!!bearer,tokenLen:bearer?bearer.length:0,branch:bearer?'fetching':'no-token-gate'},hypothesisId:'H-A-H-D',timestamp:Date.now()}}); } catch(e) {}
+    // #endregion
     if (!bearer) {
         showAuthGate('no-token');
         if (statusEl) {
@@ -8016,6 +8111,8 @@ async function loadDashboard(token) {
     }
 
     hideAuthGate();
+
+    loadTopbarWidgets(bearer);
 
     lastData.auditFetchPending = true;
     lastData.aud = [];
