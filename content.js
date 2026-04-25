@@ -140,8 +140,14 @@
     const wrap = document.createElement("div");
     wrap.setAttribute(ZN_BETA_ITEM_WRAP_ATTR, "true");
     wrap.className = "zn-main-drill-down__content__item " + ZN_BETA_ROW_CLASS;
+    // Force padding/margin to zero with !important inline styles so no portal stylesheet
+    // rule (regardless of specificity) can push our item further right than native items.
+    wrap.style.setProperty("padding", "0", "important");
+    wrap.style.setProperty("margin", "0", "important");
     const inner = document.createElement("div");
     inner.className = "zn-sidebar-item";
+    inner.style.setProperty("padding", "0", "important");
+    inner.style.setProperty("margin", "0", "important");
     inner.appendChild(btn);
     wrap.appendChild(inner);
     const divider = document.createElement("div");
@@ -498,7 +504,54 @@
       "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base__icon," +
       "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base svg," +
       "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base path" +
-      "{background-color:transparent!important;color:#cbd5e1!important;fill:currentColor!important;}";
+      "{background-color:transparent!important;color:#cbd5e1!important;fill:currentColor!important;}" +
+
+      // ── Dashboard (Beta) button: suppress any portal-applied or browser-default
+      // border/outline that would show as an unwanted rectangle around the item.
+      // Also zero out all padding/margin on the wrapper and its inner .zn-sidebar-item
+      // so the button's own 16px left padding is the sole source of indentation
+      // (matching the left offset of native Connect nav icons).
+      ".zn-sidebar #" + BTN_ID + "," +
+      ".zn-sidebar #" + BTN_ID + ":focus," +
+      ".zn-sidebar #" + BTN_ID + ":focus-visible" +
+      "{border:none!important;outline:none!important;box-shadow:none!important;}" +
+
+      // Wrapper: the portal bleeds its own rgba(12,216,155,0.35) background onto our
+      // wrapper div because it shares the zn-main-drill-down__content__item class.
+      // Force transparent so the portal's bleed never shows through. The button itself
+      // still gets the green when active (rule below), so active state is unaffected.
+      ".zn-sidebar [" + ZN_BETA_ITEM_WRAP_ATTR + "]," +
+      ".zn-sidebar ." + ZN_BETA_ROW_CLASS +
+      "{border:none!important;outline:none!important;box-shadow:none!important;" +
+      "padding:0!important;margin:0!important;" +
+      "background:transparent!important;background-color:transparent!important;}" +
+
+      // The inner .zn-sidebar-item div uses a portal CSS class that carries its own
+      // padding (applied in the main sidebar context).  Zero it out entirely.
+      ".zn-sidebar [" + ZN_BETA_ITEM_WRAP_ATTR + "] .zn-sidebar-item" +
+      "{padding:0!important;margin:0!important;display:block!important;}" +
+
+      // Hover: replicate the portal's white-overlay hover that native nav items show.
+      // The portal applies a neutral white/transparent overlay to native <a> items;
+      // our <button> needs its own matching rule with the same visual result.
+      ".zn-sidebar #" + BTN_ID + ":hover" +
+      "{background:rgba(255,255,255,0.08)!important;" +
+      "border-radius:0!important;" +
+      "transition:background 0.15s ease!important;}" +
+
+      // Active: when Dashboard overlay is open, show the same green highlight the portal
+      // uses for its active nav items (e.g. Sessions). The portal uses rgb(12,216,155) on
+      // .zn-sidebar-item-base; we replicate that on the button itself.
+      // White text (set inline on the button) is readable on this green.
+      "html.zn-dashboard-beta-active .zn-sidebar #" + BTN_ID +
+      "{background:rgb(12,216,155)!important;" +
+      "border-radius:8px!important;}" +
+
+      // Prevent hover from overriding the active green while the overlay is open.
+      "html.zn-dashboard-beta-active .zn-sidebar #" + BTN_ID + ":hover" +
+      "{background:rgb(12,216,155)!important;" +
+      "border-radius:8px!important;}";
+
     (document.head || document.documentElement).appendChild(st);
   }
 
@@ -853,25 +906,65 @@
     const btn  = document.createElement("button");
     btn.id     = BTN_ID;
     btn.type   = "button";
-    btn.textContent = "Dashboard (Beta)";
-    btn.setAttribute('data-zn-dashboard-btn', 'true'); // Unique identifier
+    btn.setAttribute('data-zn-dashboard-btn', 'true');
+
+    // Icon: monitor screen with bar-chart + pie-chart — matches the portal icon style.
+    // Rendered as white outline SVG (stroke="currentColor") to blend with native nav icons.
+    const icon = document.createElement("span");
+    icon.setAttribute("aria-hidden", "true");
+    icon.style.cssText =
+      "display:inline-flex;align-items:center;justify-content:center;" +
+      "width:20px;height:20px;flex-shrink:0;margin-right:10px;" +
+      "position:relative;top:6px;";
+    icon.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"' +
+      ' fill="none" stroke="currentColor" stroke-width="0.9"' +
+      ' stroke-linecap="round" stroke-linejoin="round">' +
+      // Monitor body
+      '<rect x="2" y="2" width="20" height="14" rx="2"/>' +
+      // Stand neck + base
+      '<path d="M12 16v3"/>' +
+      '<path d="M8 19h8"/>' +
+      // Bar chart (left half of screen)
+      '<path d="M5 12V9"/><path d="M7 12V7"/><path d="M9 12V10"/>' +
+      // Divider
+      '<path d="M11.5 4v10" stroke-width="0.45" stroke-dasharray="1.5 1.5"/>' +
+      // Pie chart circle + wedge (right half of screen)
+      '<circle cx="17" cy="9" r="3"/>' +
+      '<path d="M17 6v3h3"/>' +
+      '</svg>';
+
+    const label = document.createElement("span");
+    label.textContent = "Dashboard (Beta)";
+    // Nudge text only: ~half a character width left and down (icon stays in place).
+    label.style.cssText = "position:relative;left:-4px;top:4px;";
+
+    btn.appendChild(icon);
+    btn.appendChild(label);
+
     Object.assign(btn.style, {
-      display:      "block",
-      width:        "100%",
-      marginTop:    "0",
-      padding:      "10px 12px",
-      borderRadius: "0",
-      border:       "none",
-      background:   "transparent",
-      color:        "#ffffff",
-      fontWeight:   "400",
-      fontSize:     "13px",
-      textAlign:    "left",
-      cursor:       "pointer",
-      fontFamily:   "inherit",
-      position:     "relative",
-      zIndex:       "1000",
+      display:       "flex",
+      alignItems:    "center",
+      width:         "100%",
+      marginTop:     "0",
+      // Diagnostic: button.left=12px (container padding), native icon at 20px (12+8).
+      // So our icon must also sit at 12+8=20px → padding-left must be 8px.
+      padding:       "10px 16px 10px 8px",
+      borderRadius:  "0",
+      border:        "none",
+      outline:       "none",
+      background:    "transparent",
+      boxShadow:     "none",
+      color:         "#ffffff",
+      fontWeight:    "600",
+      fontSize:      "13px",
+      textAlign:     "left",
+      cursor:        "pointer",
+      fontFamily:    "inherit",
+      position:      "relative",
+      zIndex:        "1000",
       pointerEvents: "auto",
+      boxSizing:     "border-box",
     });
     btn.addEventListener(
       "click",
@@ -1108,11 +1201,11 @@
 
   init();
 
-  // ── Diagnostic: inject znDiagnoseSidebarLabel() into the portal's main world ─
-  // Content scripts run in an isolated world and are NOT callable from the DevTools
-  // console. Injecting a <script> tag puts the function in the page's main world so
-  // the user can call  znDiagnoseSidebarLabel()  directly in the portal tab's console.
-  (function injectDiagnostic() {
+  // ── Diagnostic helper is defined in page-token-bridge.js (MAIN world) ───────
+  // znDiagnoseSidebarLabel() is accessible from the portal tab's DevTools console
+  // because page-token-bridge.js runs with world:"MAIN".  No <script> injection
+  // needed — that approach violated the extension's CSP.
+  (function injectDiagnostic() { return; // moved to page-token-bridge.js
     if (document.getElementById("zn-sidebar-diag-script")) return;
     var s = document.createElement("script");
     s.id = "zn-sidebar-diag-script";

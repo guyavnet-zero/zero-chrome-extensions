@@ -22,19 +22,37 @@
   // ── Patch fetch ────────────────────────────────────────────────────────────
   var _fetch = window.fetch;
   window.fetch = function (input, init) {
+    var auth = null;
     try {
       if (isZnApiUrl(input) && init && init.headers) {
         var h = init.headers;
-        var auth = null;
         if (typeof h.get === 'function') {
           auth = h.get('Authorization') || h.get('authorization');
         } else if (typeof h === 'object') {
           auth = h['Authorization'] || h['authorization'];
         }
-        if (auth) relay(auth);
       }
     } catch (e) { /* noop */ }
-    return _fetch.apply(this, arguments);
+    var promise = _fetch.apply(this, arguments);
+    if (auth) {
+      var capturedAuth = auth;
+      // #region agent log
+      var _url = typeof input === 'string' ? input : (input instanceof URL ? input.href : (input && input.url) || '');
+      // #endregion
+      promise.then(function(res) {
+        if (res && res.ok) {
+          relay(capturedAuth);
+          // #region agent log
+          window.postMessage({type:'ZN_DBG_717b26',payload:{sessionId:'717b26',location:'page-token-bridge.js:fetch-relay',message:'Token relayed after successful fetch',data:{url:_url,status:res.status,authLen:capturedAuth.length},hypothesisId:'H-B-H-D',timestamp:Date.now()}},'*');
+          // #endregion
+        } else {
+          // #region agent log
+          window.postMessage({type:'ZN_DBG_717b26',payload:{sessionId:'717b26',location:'page-token-bridge.js:fetch-skip',message:'Token relay skipped — response not ok',data:{url:_url,status:res&&res.status,authLen:capturedAuth.length},hypothesisId:'H-B-H-D',timestamp:Date.now()}},'*');
+          // #endregion
+        }
+      }).catch(function(){});
+    }
+    return promise;
   };
 
   // ── Patch XMLHttpRequest ───────────────────────────────────────────────────
@@ -43,12 +61,21 @@
 
   XMLHttpRequest.prototype.open = function (method, url) {
     this._znApiUrl = isZnApiUrl(url);
+    if (this._znApiUrl) {
+      // Relay the captured auth token only after a successful response.
+      var self = this;
+      this.addEventListener('load', function () {
+        if (self._znAuthValue && self.status >= 200 && self.status < 300) {
+          relay(self._znAuthValue);
+        }
+      });
+    }
     return _open.apply(this, arguments);
   };
 
   XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
     if (this._znApiUrl && name && name.toLowerCase() === 'authorization') {
-      relay(value);
+      this._znAuthValue = value;
     }
     return _setHeader.apply(this, arguments);
   };
@@ -60,6 +87,9 @@
     if (event.source !== window) return;
     if (!event.data || event.data.type !== 'ZN_TRIGGER_FRESH_API') return;
 
+    // #region agent log
+    window.postMessage({type:'ZN_DBG_717b26',payload:{sessionId:'717b26',location:'page-token-bridge.js:ZN_TRIGGER_FRESH_API',message:'ZN_TRIGGER_FRESH_API received — firing fresh licenses call',data:{hash:location.hash},hypothesisId:'H-C',timestamp:Date.now()}},'*');
+    // #endregion
     _fetch('/api/v1/settings/subscriptions/licenses/connect', {
       method: 'GET',
       credentials: 'include'

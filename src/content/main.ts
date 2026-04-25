@@ -19,15 +19,6 @@
     } catch (_) {}
   });
 
-  // #region agent log — relay debug logs from MAIN world through to background.js
-  window.addEventListener("message", function (event) {
-    if (event.source !== window) return;
-    if (!event.data || event.data.type !== "ZN_DBG_717b26") return;
-    if (!isExtensionContextValid()) return;
-    try { chrome.runtime.sendMessage({ type: "ZN_DBG_717b26", payload: event.data.payload }); } catch (_) {}
-  });
-  // #endregion
-
   // Tell the page to fire a fresh authenticated API call so background.js
   // can intercept it and store a new token in chrome.storage.
   chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
@@ -157,8 +148,14 @@
     const wrap = document.createElement("div");
     wrap.setAttribute(ZN_BETA_ITEM_WRAP_ATTR, "true");
     wrap.className = "zn-main-drill-down__content__item " + ZN_BETA_ROW_CLASS;
+    // Force padding/margin to zero with !important inline styles so no portal stylesheet
+    // rule (regardless of specificity) can push our item further right than native items.
+    wrap.style.setProperty("padding", "0", "important");
+    wrap.style.setProperty("margin", "0", "important");
     const inner = document.createElement("div");
     inner.className = "zn-sidebar-item";
+    inner.style.setProperty("padding", "0", "important");
+    inner.style.setProperty("margin", "0", "important");
     inner.appendChild(btn);
     wrap.appendChild(inner);
     const divider = document.createElement("div");
@@ -513,7 +510,54 @@
       "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base__icon," +
       "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base svg," +
       "html.zn-dashboard-beta-active .zn-sidebar a.zn-route-sidebar-item--active .zn-sidebar-item-base path" +
-      "{background-color:transparent!important;color:#cbd5e1!important;fill:currentColor!important;}";
+      "{background-color:transparent!important;color:#cbd5e1!important;fill:currentColor!important;}" +
+
+      // ── Dashboard (Beta) button: suppress any portal-applied or browser-default
+      // border/outline that would show as an unwanted rectangle around the item.
+      // Also zero out all padding/margin on the wrapper and its inner .zn-sidebar-item
+      // so the button's own 16px left padding is the sole source of indentation
+      // (matching the left offset of native Connect nav icons).
+      ".zn-sidebar #" + BTN_ID + "," +
+      ".zn-sidebar #" + BTN_ID + ":focus," +
+      ".zn-sidebar #" + BTN_ID + ":focus-visible" +
+      "{border:none!important;outline:none!important;box-shadow:none!important;}" +
+
+      // Wrapper: the portal bleeds its own rgba(12,216,155,0.35) background onto our
+      // wrapper div because it shares the zn-main-drill-down__content__item class.
+      // Force transparent so the portal's bleed never shows through. The button itself
+      // still gets the green when active (rule below), so active state is unaffected.
+      ".zn-sidebar [" + ZN_BETA_ITEM_WRAP_ATTR + "]," +
+      ".zn-sidebar ." + ZN_BETA_ROW_CLASS +
+      "{border:none!important;outline:none!important;box-shadow:none!important;" +
+      "padding:0!important;margin:0!important;" +
+      "background:transparent!important;background-color:transparent!important;}" +
+
+      // The inner .zn-sidebar-item div uses a portal CSS class that carries its own
+      // padding (applied in the main sidebar context).  Zero it out entirely.
+      ".zn-sidebar [" + ZN_BETA_ITEM_WRAP_ATTR + "] .zn-sidebar-item" +
+      "{padding:0!important;margin:0!important;display:block!important;}" +
+
+      // Hover: replicate the portal's white-overlay hover that native nav items show.
+      // The portal applies a neutral white/transparent overlay to native <a> items;
+      // our <button> needs its own matching rule with the same visual result.
+      ".zn-sidebar #" + BTN_ID + ":hover" +
+      "{background:rgba(255,255,255,0.08)!important;" +
+      "border-radius:0!important;" +
+      "transition:background 0.15s ease!important;}" +
+
+      // Active: when Dashboard overlay is open, show the same green highlight the portal
+      // uses for its active nav items (e.g. Sessions). The portal uses rgb(12,216,155) on
+      // .zn-sidebar-item-base; we replicate that on the button itself.
+      // White text (set inline on the button) is readable on this green.
+      "html.zn-dashboard-beta-active .zn-sidebar #" + BTN_ID +
+      "{background:rgb(12,216,155)!important;" +
+      "border-radius:8px!important;}" +
+
+      // Prevent hover from overriding the active green while the overlay is open.
+      "html.zn-dashboard-beta-active .zn-sidebar #" + BTN_ID + ":hover" +
+      "{background:rgb(12,216,155)!important;" +
+      "border-radius:8px!important;}";
+
     (document.head || document.documentElement).appendChild(st);
   }
 
@@ -823,25 +867,65 @@
     const btn  = document.createElement("button");
     btn.id     = BTN_ID;
     btn.type   = "button";
-    btn.textContent = "Dashboard (Beta)";
-    btn.setAttribute('data-zn-dashboard-btn', 'true'); // Unique identifier
+    btn.setAttribute('data-zn-dashboard-btn', 'true');
+
+    // Icon: monitor screen with bar-chart + pie-chart — matches the portal icon style.
+    // Rendered as white outline SVG (stroke="currentColor") to blend with native nav icons.
+    const icon = document.createElement("span");
+    icon.setAttribute("aria-hidden", "true");
+    icon.style.cssText =
+      "display:inline-flex;align-items:center;justify-content:center;" +
+      "width:20px;height:20px;flex-shrink:0;margin-right:10px;" +
+      "position:relative;top:6px;";
+    icon.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"' +
+      ' fill="none" stroke="currentColor" stroke-width="0.9"' +
+      ' stroke-linecap="round" stroke-linejoin="round">' +
+      // Monitor body
+      '<rect x="2" y="2" width="20" height="14" rx="2"/>' +
+      // Stand neck + base
+      '<path d="M12 16v3"/>' +
+      '<path d="M8 19h8"/>' +
+      // Bar chart (left half of screen)
+      '<path d="M5 12V9"/><path d="M7 12V7"/><path d="M9 12V10"/>' +
+      // Divider
+      '<path d="M11.5 4v10" stroke-width="0.45" stroke-dasharray="1.5 1.5"/>' +
+      // Pie chart circle + wedge (right half of screen)
+      '<circle cx="17" cy="9" r="3"/>' +
+      '<path d="M17 6v3h3"/>' +
+      '</svg>';
+
+    const label = document.createElement("span");
+    label.textContent = "Dashboard (Beta)";
+    // Nudge text only: ~half a character width left and down (icon stays in place).
+    label.style.cssText = "position:relative;left:-4px;top:4px;";
+
+    btn.appendChild(icon);
+    btn.appendChild(label);
+
     Object.assign(btn.style, {
-      display:      "block",
-      width:        "100%",
-      marginTop:    "0",
-      padding:      "10px 12px",
-      borderRadius: "0",
-      border:       "none",
-      background:   "transparent",
-      color:        "#ffffff",
-      fontWeight:   "400",
-      fontSize:     "13px",
-      textAlign:    "left",
-      cursor:       "pointer",
-      fontFamily:   "inherit",
-      position:     "relative",
-      zIndex:       "1000",
+      display:       "flex",
+      alignItems:    "center",
+      width:         "100%",
+      marginTop:     "0",
+      // Diagnostic: button.left=12px (container padding), native icon at 20px (12+8).
+      // So our icon must also sit at 12+8=20px → padding-left must be 8px.
+      padding:       "10px 16px 10px 8px",
+      borderRadius:  "0",
+      border:        "none",
+      outline:       "none",
+      background:    "transparent",
+      boxShadow:     "none",
+      color:         "#ffffff",
+      fontWeight:    "600",
+      fontSize:      "13px",
+      textAlign:     "left",
+      cursor:        "pointer",
+      fontFamily:    "inherit",
+      position:      "relative",
+      zIndex:        "1000",
       pointerEvents: "auto",
+      boxSizing:     "border-box",
     });
     btn.addEventListener(
       "click",
@@ -1078,180 +1162,4 @@
 
   init();
 
-  // ── Diagnostic: inject znDiagnoseSidebarLabel() into the portal's main world ─
-  // Content scripts run in an isolated world and are NOT callable from the DevTools
-  // console. Injecting a <script> tag puts the function in the page's main world so
-  // the user can call  znDiagnoseSidebarLabel()  directly in the portal tab's console.
-  (function injectDiagnostic() {
-    if (document.getElementById("zn-sidebar-diag-script")) return;
-    const s = document.createElement("script");
-    s.id = "zn-sidebar-diag-script";
-    s.textContent = /* js */`
-(function() {
-  window.znDiagnoseSidebarLabel = function znDiagnoseSidebarLabel() {
-    var out = ['=== ZN Sidebar Label Diagnostic ===', new Date().toISOString(), ''];
-
-    var sidebar = document.querySelector('.zn-sidebar');
-    if (!sidebar) {
-      console.warn('[znDiag] .zn-sidebar not found — run this in the PORTAL tab, not the iframe.');
-      return;
-    }
-
-    out.push('--- Dashboard overlay state ---');
-    out.push('html.zn-dashboard-beta-active : ' +
-      document.documentElement.classList.contains('zn-dashboard-beta-active'));
-    out.push('sessionStorage[zn-connect-dashboard-open] : ' +
-      sessionStorage.getItem('zn-connect-dashboard-open'));
-    out.push('Extension style tag present   : ' +
-      !!document.getElementById('zn-dashboard-beta-order-style'));
-    out.push('');
-
-    function shortEl(el) {
-      if (!el) return 'null';
-      var cls = typeof el.className === 'string'
-        ? el.className.trim().replace(/\\s+/g, '.') : '';
-      return '<' + el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') +
-             (cls ? '.' + cls : '') + '>';
-    }
-
-    function dumpEl(label, el) {
-      if (!el) { out.push('  ' + label + ': (not found)'); return; }
-      var cs = getComputedStyle(el);
-      out.push('  ' + label + '  ' + shortEl(el));
-      out.push('    inline style : ' + (el.style.cssText || '(none)'));
-      out.push('    color        : ' + cs.color);
-      out.push('    background   : ' + cs.background);
-      out.push('    bg-color     : ' + cs.backgroundColor);
-      out.push('    bg-image     : ' + cs.backgroundImage);
-      out.push('    bg-clip      : ' + cs.backgroundClip + ' / -webkit: ' + cs.webkitBackgroundClip);
-      out.push('    opacity      : ' + cs.opacity);
-      out.push('    visibility   : ' + cs.visibility);
-      out.push('    display      : ' + cs.display);
-      out.push('    text content : "' + el.textContent.trim().replace(/\\s+/g, ' ').substring(0, 80) + '"');
-    }
-
-    function walkSubtree(el, depth) {
-      if (!el || depth > 6) return;
-      var cs = getComputedStyle(el);
-      var bgClip = cs.backgroundClip || '';
-      var wbgClip = cs.webkitBackgroundClip || '';
-      var interesting =
-        bgClip.includes('text') || wbgClip.includes('text') ||
-        cs.color === 'transparent' || cs.color === 'rgba(0, 0, 0, 0)' ||
-        (el.style && (el.style.background || el.style.backgroundColor));
-      if (interesting) {
-        out.push('    [depth=' + depth + '] ' + shortEl(el));
-        out.push('      bg-clip        : ' + bgClip + ' / ' + wbgClip);
-        out.push('      color          : ' + cs.color);
-        out.push('      bg-color       : ' + cs.backgroundColor);
-        out.push('      bg-image       : ' + cs.backgroundImage);
-        out.push('      inline style   : ' + (el.style.cssText || '(none)'));
-      }
-      for (var i = 0; i < el.children.length; i++) walkSubtree(el.children[i], depth + 1);
-    }
-
-    var ACTIVE_SELS = [
-      'a.zn-route-sidebar-item--active',
-      'a.zn-route-sidebar-item.router-link-active',
-      'a.zn-route-sidebar-item.router-link-exact-active',
-      '.zn-main-drill-down__content__item.router-link-active a',
-      '.zn-main-drill-down__content__item.router-link-exact-active a',
-    ];
-
-    var found = false;
-    ACTIVE_SELS.forEach(function(sel) {
-      var hits = sidebar.querySelectorAll(sel);
-      if (!hits.length) return;
-      found = true;
-      out.push('--- Active item matched by "' + sel + '" ---');
-      hits.forEach(function(a) {
-        dumpEl('anchor', a);
-        dumpEl('.zn-sidebar-item-base',
-          a.querySelector('.zn-sidebar-item-base') || a.closest('.zn-sidebar-item-base'));
-        dumpEl('.zn-sidebar-item-base__icon', a.querySelector('.zn-sidebar-item-base__icon'));
-        var labelEl = a.querySelector(
-          '.zn-sidebar-item-base__label, [class*="label"], [class*="text"], span');
-        dumpEl('first label/text child', labelEl);
-        out.push('  --- background-clip:text scan (full subtree) ---');
-        walkSubtree(a, 0);
-        out.push('');
-      });
-    });
-
-    if (!found) {
-      out.push('(no active item found with known selectors)');
-      out.push('All .zn-route-sidebar-item anchors present:');
-      sidebar.querySelectorAll('a.zn-route-sidebar-item').forEach(function(a) {
-        out.push('  ' + shortEl(a) + '  "' + a.textContent.trim().substring(0, 50) + '"');
-      });
-    }
-
-    out.push('--- All .zn-sidebar-item-base inline styles ---');
-    var anyInline = false;
-    sidebar.querySelectorAll('.zn-sidebar-item-base').forEach(function(el) {
-      if (!el.style.cssText) return;
-      anyInline = true;
-      out.push('  ' + shortEl(el) + '  style="' + el.style.cssText + '"');
-    });
-    if (!anyInline) out.push('  (none — extension is NOT setting inline styles on these elements)');
-
-    var text = out.join('\\n');
-    console.log('%c' + text, 'color:#00df9a;font-family:monospace;font-size:11px');
-
-    // Show overlay UI
-    var old = document.getElementById('zn-diag-sidebar-overlay');
-    if (old) old.remove();
-    var overlay = document.createElement('div');
-    overlay.id = 'zn-diag-sidebar-overlay';
-    Object.assign(overlay.style, {
-      position:'fixed', top:'0', left:'0', right:'0', bottom:'0', zIndex:'9999999',
-      background:'rgba(0,0,0,0.88)', display:'flex', flexDirection:'column',
-      alignItems:'center', justifyContent:'center', padding:'24px',
-    });
-    var card = document.createElement('div');
-    Object.assign(card.style, {
-      background:'#1e293b', borderRadius:'12px', padding:'20px', width:'100%',
-      maxWidth:'860px', maxHeight:'84vh', display:'flex', flexDirection:'column', gap:'12px',
-    });
-    var hdr = document.createElement('div');
-    Object.assign(hdr.style, { display:'flex', justifyContent:'space-between', alignItems:'center' });
-    var ttl = document.createElement('h3');
-    ttl.textContent = 'Sidebar Label Diagnostic';
-    Object.assign(ttl.style, { margin:'0', color:'#f1f5f9', fontSize:'16px' });
-    var xBtn = document.createElement('button');
-    xBtn.textContent = 'X';
-    Object.assign(xBtn.style, {
-      background:'transparent', border:'none', color:'#94a3b8',
-      fontSize:'18px', cursor:'pointer', padding:'0 4px',
-    });
-    xBtn.onclick = function() { overlay.remove(); };
-    hdr.appendChild(ttl); hdr.appendChild(xBtn);
-    var ta = document.createElement('textarea');
-    ta.value = text; ta.readOnly = true;
-    Object.assign(ta.style, {
-      flex:'1', background:'#0f172a', color:'#94a3b8', border:'1px solid #334155',
-      borderRadius:'8px', padding:'12px', fontFamily:'monospace', fontSize:'11px',
-      resize:'none', minHeight:'300px',
-    });
-    var cpBtn = document.createElement('button');
-    cpBtn.textContent = 'Copy to clipboard';
-    Object.assign(cpBtn.style, {
-      background:'#00df9a', color:'#0f172a', border:'none', borderRadius:'8px',
-      padding:'10px 20px', fontWeight:'600', cursor:'pointer', fontSize:'13px', flexShrink:'0',
-    });
-    cpBtn.onclick = function() {
-      navigator.clipboard.writeText(text).then(function() {
-        cpBtn.textContent = 'Copied!';
-        setTimeout(function() { cpBtn.textContent = 'Copy to clipboard'; }, 2000);
-      }).catch(function() { ta.select(); document.execCommand('copy'); });
-    };
-    card.appendChild(hdr); card.appendChild(ta); card.appendChild(cpBtn);
-    overlay.appendChild(card);
-    document.body.appendChild(overlay);
-  };
-  console.log('%c[ZN Extension] znDiagnoseSidebarLabel() is ready — call it any time in this tab\\'s console.', 'color:#00df9a');
-})();
-    `;
-    (document.head || document.documentElement).appendChild(s);
-  })();
 })();

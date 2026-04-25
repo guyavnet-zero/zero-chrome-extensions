@@ -1,0 +1,14 @@
+---
+description: CRXJS + Vite HMR dev workflow — no manual build steps
+alwaysApply: true
+---
+
+# CRXJS Dev Workflow
+
+This project uses **CRXJS** with Vite and Hot Module Replacement (HMR).
+
+- **Never tell the user to run `npm run build`** after making a change. The dev server picks up file saves automatically via HMR.
+- **Only tell the user to restart `npm run dev`** when you have made a change that requires a server cycle:
+  - `manifest.json` (or `manifest.config.ts`) structural changes
+  - `vite.config.ts` changes
+- For all other file edits (TypeScript, HTML, CSS, JS), just save and HMR handles it.

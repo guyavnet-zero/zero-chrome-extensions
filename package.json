@@ -1,25 +1,19 @@
 {
   "name": "zero-dashboard",
+  "type": "module",
   "version": "1.0.0",
-  "description": "",
-  "main": "background.js",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "test:e2e": "playwright test -c e2e/playwright.config.ts"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "esbuild": "^0.28.0",
-    "lucide-react": "^1.7.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-simple-maps": "^3.0.0",
-    "recharts": "^3.8.1"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "postinstall": "node -e \"const f='node_modules/@crxjs/vite-plugin/dist/index.mjs';const fs=require('fs');if(fs.existsSync(f)){const s=fs.readFileSync(f,'utf8');const p=s.replace('matches: [\\\"<all_urls>\\\"]','matches: [\\\"https://*.zeronetworks.com/*\\\"]');if(p!==s)fs.writeFileSync(f,p);}\""
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.1"
+    "@crxjs/vite-plugin": "^2.4.0",
+    "@types/chrome": "^0.1.37",
+    "@types/node": "^25.5.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.0",
+    "vite-plugin-zip-pack": "^1.2.4"
   }
 }
