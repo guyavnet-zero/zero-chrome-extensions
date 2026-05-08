@@ -1,12 +1,16 @@
 {
   "name": "zero-dashboard",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.68",
   "private": true,
   "scripts": {
+    "version:bump": "npm version patch --no-git-tag-version",
     "dev": "vite",
     "build": "tsc && vite build",
-    "postinstall": "node -e \"const f='node_modules/@crxjs/vite-plugin/dist/index.mjs';const fs=require('fs');if(fs.existsSync(f)){const s=fs.readFileSync(f,'utf8');const p=s.replace('matches: [\\\"<all_urls>\\\"]','matches: [\\\"https://*.zeronetworks.com/*\\\"]');if(p!==s)fs.writeFileSync(f,p);}\""
+    "release:onedrive": "npm run build && node scripts/release-onedrive.cjs",
+    "release:github": "node scripts/release-github.cjs",
+    "sync": "node -e \"const fs=require('fs'),path=require('path');const pairs=[['pages/connect/dashboard-logic.js','dist/pages/connect/dashboard-logic.js'],['pages/connect/index.css','dist/pages/connect/index.css'],['pages/connect/index.html','dist/pages/connect/index.html'],['pages/dashboard/dashboard.js','dist/pages/dashboard/dashboard.js'],['pages/dashboard/dashboard.css','dist/pages/dashboard/dashboard.css']];pairs.forEach(([s,d])=>{fs.mkdirSync(path.dirname(d),{recursive:true});fs.copyFileSync(s,d);console.log('copied',s)});console.log('\\nDone. Now reload the extension at chrome://extensions');\"",
+    "postinstall": "node -e \"const f='node_modules/@crxjs/vite-plugin/dist/index.mjs';const fs=require('fs');if(fs.existsSync(f)){let s=fs.readFileSync(f,'utf8');let p=s.replace('matches: [\\\"<all_urls>\\\"]','matches: [\\\"https://*.zeronetworks.com/*\\\"]');p=p.replace('location.reload();\\\\n        } else\\\\n          throw error;\\\\n      }\\\\n    }, __CRX_HMR_TIMEOUT__)','location.reload();\\\\n        } else if (!(error instanceof Error && error.message.includes(\\\\\\\"disconnected port\\\\\\\")))\\\\n          throw error;\\\\n      }\\\\n    }, __CRX_HMR_TIMEOUT__)');if(p!==s)fs.writeFileSync(f,p);}\""
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.4.0",

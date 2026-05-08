@@ -97,6 +97,8 @@ var auditChartDrillContext = null;
 var znAuditActivityConnectDailyInsights = null;
 /** Policy Operations: per chart x-label, types 100/101/102 stats for external tooltip. */
 var znAuditActivityPolicyDailyInsights = null;
+/** Posture Audits: per chart x-label, found/resolved counts + rawEvents for drawer. */
+var znAuditActivityPostureDailyInsights = null;
 var leafletMap         = null;
 var regionMarkers      = [];   // server circle markers
 var mapUserMarkers     = [];   // GeoIP user markers
@@ -272,56 +274,16 @@ function isPortalAuthReadyForApi(token) {
 }
 
 function showAuthGate(mode) {
-    var gate = document.getElementById('dashboard-auth-gate');
-    var titleEl = document.getElementById('zn-auth-gate-title');
-    var bodyEl = document.getElementById('zn-auth-gate-body');
-    if (!gate) return;
-    
-    if (titleEl) {
-        titleEl.textContent = mode === 'no-token' ? 'Sign in required' : 'Session expired';
-    }
-    
-    if (bodyEl) {
-        if (mode === 'no-token') {
-            bodyEl.innerHTML = `
-                <p style="margin-bottom: 16px;">
-                    The dashboard needs an active Zero Networks portal session to load your data.
-                </p>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                    <h4 style="margin: 0 0 8px 0; color: #475569; font-size: 14px; font-weight: 600;">
-                        What happens next:
-                    </h4>
-                    <ol style="margin: 0; padding-left: 20px; color: #64748b; font-size: 14px; line-height: 1.5;">
-                        <li>You'll be redirected to the Zero Networks portal</li>
-                        <li>Sign in with your credentials</li>
-                        <li>You'll be automatically returned to the dashboard</li>
-                    </ol>
-                </div>
-            `;
-        } else {
-            bodyEl.innerHTML = `
-                <p style="margin-bottom: 16px;">
-                    Your portal session has expired. Please sign in again to continue using the dashboard.
-                </p>
-                <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
-                    <p style="margin: 0; color: #92400e; font-size: 14px;">
-                        💡 <strong>Tip:</strong> Keep the portal tab open to avoid frequent re-authentication.
-                    </p>
-                </div>
-            `;
+    try {
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'ZN_DASHBOARD_AUTH_REQUIRED' }, '*');
+            return;
         }
-    }
-    
-    gate.classList.add('is-visible');
-    gate.setAttribute('aria-hidden', 'false');
+    } catch (e) { /* cross-origin read guard — fall through */ }
+    openPortalReauth();
 }
 
-function hideAuthGate() {
-    var gate = document.getElementById('dashboard-auth-gate');
-    if (!gate) return;
-    gate.classList.remove('is-visible');
-    gate.setAttribute('aria-hidden', 'true');
-}
+function hideAuthGate() { /* gate removed */ }
 
 function getZnReauthTargetUrl() {
     var custom = typeof window.ZN_DASHBOARD_LOGIN_URL === 'string' ? window.ZN_DASHBOARD_LOGIN_URL.trim() : '';
@@ -597,7 +559,13 @@ const AUDIT_TYPE_NAMES = {
     351: "Connect region down",
     352: "Connect region recovered",
     365: "Connect auto-update settings updated",
-    374: "Connect posture check failed"
+    374: "Connect posture check failed",
+    387: "Posture profile created",
+    388: "Posture profile edited",
+    389: "Posture profile deleted",
+    392: "Posture violation setting updated",
+    393: "Global posture checks excluded users updated",
+    394: "Posture violation status changed"
 };
 
 // Server-side /audit filter: only these Connect auditType IDs (must match AUDIT_TYPE_NAMES).
@@ -2482,6 +2450,175 @@ function buildPolicyModeDailyInsightsFrom100101102(poolItems, timeBuckets) {
     return dailyPolicyInsights;
 }
 
+// ── Posture Audit helpers ──────────────────────────────────────────────────
+
+var AUDIT_TYPES_POSTURE_VIOLATIONS  = { 390: true, 374: true };
+var AUDIT_TYPES_POSTURE_RESOLVED    = { 391: true };
+var AUDIT_TYPES_POSTURE_ADMIN       = { 387: true, 388: true, 389: true, 392: true, 393: true, 394: true };
+
+var POSTURE_CHECK_TYPE_LABELS = {
+    12: 'MFA check',
+    13: 'MFA configuration',
+    18: 'Password policy',
+    19: 'OS version',
+    20: 'Inactive account'
+};
+
+function postureCheckTypeLabel(n) {
+    var num = Number(n);
+    return POSTURE_CHECK_TYPE_LABELS[num] || ('Check #' + num);
+}
+
+function postureAuditEventBadge(typeNum) {
+    var n = Number(typeNum);
+    if (AUDIT_TYPES_POSTURE_VIOLATIONS[n])  return '<span class="posture-badge posture-badge--violation">Violation Found</span>';
+    if (AUDIT_TYPES_POSTURE_RESOLVED[n])    return '<span class="posture-badge posture-badge--resolved">Resolved</span>';
+    if (n === 387) return '<span class="posture-badge posture-badge--admin">Profile Created</span>';
+    if (n === 388) return '<span class="posture-badge posture-badge--admin">Profile Edited</span>';
+    if (n === 389) return '<span class="posture-badge posture-badge--admin-del">Profile Deleted</span>';
+    if (n === 392) return '<span class="posture-badge posture-badge--admin">Setting Updated</span>';
+    if (n === 393) return '<span class="posture-badge posture-badge--admin">Excluded Users Updated</span>';
+    if (n === 394) return '<span class="posture-badge posture-badge--admin">Status Changed</span>';
+    return '<span class="posture-badge posture-badge--admin">Event</span>';
+}
+
+/**
+ * Posture Audits chart: violations found, resolved, admin/profile changes per bucket.
+ * Final: { [label]: { found, resolved, adminChanges, topUser, rawEvents } }
+ */
+function buildPostureAuditDailyInsights(poolItems, timeBuckets) {
+    var daily = {};
+    timeBuckets.forEach(function(b) {
+        daily[b.label] = { found: 0, resolved: 0, adminChanges: 0, topUser: '\u2014', rawEvents: [],
+                           _userCounts: Object.create(null) };
+    });
+
+    (poolItems || []).forEach(function(item) {
+        var t = auditTypeToNum(item);
+        var isViol  = !!AUDIT_TYPES_POSTURE_VIOLATIONS[t];
+        var isResol = !!AUDIT_TYPES_POSTURE_RESOLVED[t];
+        var isAdmin = !!AUDIT_TYPES_POSTURE_ADMIN[t];
+        if (!isViol && !isResol && !isAdmin) return;
+
+        var ts = getAuditItemTs(item);
+        if (ts == null) return;
+        var bucket = null;
+        for (var bi = 0; bi < timeBuckets.length; bi++) {
+            var bu = timeBuckets[bi];
+            if (ts >= bu.startMs && ts < bu.endMs) { bucket = bu; break; }
+        }
+        if (!bucket) return;
+        var e = daily[bucket.label];
+        if (!e) return;
+
+        if (isViol)  e.found++;
+        if (isResol) e.resolved++;
+        if (isAdmin) e.adminChanges++;
+        e.rawEvents.push(item);
+
+        // track most-affected user from destinationEntitiesList
+        var dest = item.destinationEntitiesList;
+        if (Array.isArray(dest) && dest.length > 0 && dest[0].name) {
+            var uname = String(dest[0].name).trim();
+            e._userCounts[uname] = (e._userCounts[uname] || 0) + 1;
+        }
+    });
+
+    Object.keys(daily).forEach(function(k) {
+        var e = daily[k];
+        var topUser = '\u2014', maxU = 0;
+        Object.keys(e._userCounts).forEach(function(u) {
+            if (e._userCounts[u] > maxU) { maxU = e._userCounts[u]; topUser = u; }
+        });
+        e.topUser = maxU > 0 ? topUser : '\u2014';
+        delete e._userCounts;
+    });
+    return daily;
+}
+
+/**
+ * Latest-event-wins per (userId + checkType) within last 14 days.
+ * Returns count of (user, checkType) pairs where latest event is type 390.
+ */
+function postureActiveViolationCount14d(audItems) {
+    var cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+    var latestByKey = Object.create(null);
+
+    (audItems || []).forEach(function(item) {
+        var t = auditTypeToNum(item);
+        if (t !== 390 && t !== 391) return;
+        var ts = getAuditItemTs(item);
+        if (ts == null || ts < cutoff) return;
+        var d = parseAuditDetails(item);
+        if (!d) return;
+        var userId = d.userId || item.reportedObjectId || '';
+        var checks = Array.isArray(d.postureCheckTypes) ? d.postureCheckTypes : [0];
+        checks.forEach(function(ct) {
+            var key = userId + ':' + ct;
+            if (!latestByKey[key] || ts > latestByKey[key].ts) {
+                latestByKey[key] = { ts: ts, type: t };
+            }
+        });
+    });
+
+    return Object.keys(latestByKey).filter(function(k) {
+        return latestByKey[k].type === 390;
+    }).length;
+}
+
+/** Most frequent postureCheckType in type 390 events (last 14 days). */
+function postureTopFailingCheck14d(audItems) {
+    var cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+    var counts = Object.create(null);
+    var topCheck = null, topCount = 0;
+
+    (audItems || []).forEach(function(item) {
+        if (auditTypeToNum(item) !== 390) return;
+        var ts = getAuditItemTs(item);
+        if (ts == null || ts < cutoff) return;
+        var d = parseAuditDetails(item);
+        if (!d || !Array.isArray(d.postureCheckTypes)) return;
+        d.postureCheckTypes.forEach(function(ct) {
+            counts[ct] = (counts[ct] || 0) + 1;
+            if (counts[ct] > topCount) { topCount = counts[ct]; topCheck = ct; }
+        });
+    });
+
+    return topCheck !== null ? { checkType: topCheck, count: topCount } : null;
+}
+
+/** Day with the highest violation count, if it's ≥3 and ≥2× the rolling daily average. */
+function postureViolationSpike30d(audItems, timeBuckets) {
+    var dayCounts = timeBuckets.map(function(b) {
+        return countAuditTypeInBucketRange(audItems, 390, b.startMs, b.endMs) +
+               countAuditTypeInBucketRange(audItems, 374, b.startMs, b.endMs);
+    });
+    if (!dayCounts.length) return null;
+    var maxCount = Math.max.apply(null, dayCounts);
+    var maxIdx   = dayCounts.indexOf(maxCount);
+    var avg = dayCounts.reduce(function(a, b) { return a + b; }, 0) / dayCounts.length;
+    if (maxCount < 3 || avg < 0.5 || maxCount < 2 * avg) return null;
+    return {
+        dayLabel: (timeBuckets[maxIdx] ? timeBuckets[maxIdx].label : '?'),
+        count: maxCount,
+        avg: Math.round(avg * 10) / 10
+    };
+}
+
+/** Per-check-type violation counts across all 390 events in 30d pool for widget bars. */
+function postureCheckTypeCounts30d(audItems) {
+    var counts = Object.create(null);
+    (audItems || []).forEach(function(item) {
+        if (auditTypeToNum(item) !== 390) return;
+        var d = parseAuditDetails(item);
+        if (!d || !Array.isArray(d.postureCheckTypes)) return;
+        d.postureCheckTypes.forEach(function(ct) {
+            counts[ct] = (counts[ct] || 0) + 1;
+        });
+    });
+    return counts;
+}
+
 function znRichTooltipEscapeHtml(s) {
     return String(s)
         .replace(/&/g, '&amp;')
@@ -2653,6 +2790,20 @@ function customRichTooltip(context) {
                 'Unique users: <strong>' + uniqueCount + '</strong></div>' +
                 '<div class="zn-rich-tooltip-insight policy-link" data-date="' + znRichTooltipEscapeHtml(dateLabel) + '">' +
                 'Top policies: <strong>' + topPolsStr + '</strong></div>';
+        }
+    } else if (ttMode === 'posture_audit' && znAuditActivityPostureDailyInsights && dateLabel) {
+        var insPost = znAuditActivityPostureDailyInsights[dateLabel];
+        if (insPost && (insPost.found > 0 || insPost.resolved > 0 || insPost.adminChanges > 0)) {
+            var net = insPost.found - insPost.resolved;
+            var netStr = net > 0 ? '+' + net + ' net open' : (net < 0 ? net + ' net' : 'balanced');
+            insightsHtml = '<hr class="zn-rich-tooltip-hr">' +
+                '<div class="zn-rich-tooltip-insight">' +
+                'Net: <strong>' + znRichTooltipEscapeHtml(netStr) + '</strong></div>' +
+                (insPost.topUser !== '\u2014'
+                    ? '<div class="zn-rich-tooltip-insight">Top user: <strong>' +
+                      znRichTooltipEscapeHtml(insPost.topUser) + '</strong></div>'
+                    : '') +
+                '<div class="zn-rich-tooltip-insight" style="color:#94a3b8;font-size:0.72rem">Click bar to view events</div>';
         }
     }
 
@@ -3566,8 +3717,8 @@ function auditActivityPerformedByName(item) {
 function filterAuditsForActivityChartScope(poolItems, mode) {
     var pool = poolItems || [];
     
-    // Apply dashboard region and user filters (same as other widgets)
-    if (mode !== 'region_health') {
+    // posture_audit and region_health use system-generated events — skip user filter
+    if (mode !== 'region_health' && mode !== 'posture_audit') {
         pool = filterAuditsByDashboardFilters(pool);
     }
     
@@ -3627,7 +3778,7 @@ function renderActivityExplorerChart(allItems, period) {
     void period;
     var poolItems = filterByPeriod(allItems || [], '30d');
     var mode = activityChartMode || 'connect';
-    if (mode !== 'connect' && mode !== 'sessions' && mode !== 'region_health' && mode !== 'policy') {
+    if (mode !== 'connect' && mode !== 'sessions' && mode !== 'region_health' && mode !== 'policy' && mode !== 'posture_audit') {
         activityChartMode = 'connect';
         mode = 'connect';
     }
@@ -3645,6 +3796,7 @@ function renderActivityExplorerChart(allItems, period) {
     if (!canvasEl) return;
 
     var borderPal = ['#00b894', '#6c5ce7', '#fdcb6e', '#0984e3', '#e17055', '#a29bfe', '#00cec9', '#fd79a8', '#fab1a0', '#74b9ff'];
+    var connectBorderPal = ['#00cec9', '#00b894', '#74b9ff', '#a29bfe', '#0984e3', '#6c5ce7', '#55efc4', '#fd79a8', '#fab1a0', '#fdcb6e'];
 
     if (auditChartInstance) {
         try { auditChartInstance.destroy(); } catch (e) { /* noop */ }
@@ -3653,6 +3805,7 @@ function renderActivityExplorerChart(allItems, period) {
     auditChartDrillContext = null;
     znAuditActivityConnectDailyInsights = null;
     znAuditActivityPolicyDailyInsights = null;
+    znAuditActivityPostureDailyInsights = null;
     var znRttHide = document.getElementById('chartjs-rich-tooltip');
     if (znRttHide) {
         znRttHide.classList.remove('is-hovered');
@@ -3716,8 +3869,8 @@ function renderActivityExplorerChart(allItems, period) {
                     Object.keys(byReg).forEach(function(k) { t += byReg[k]; });
                     return t;
                 }),
-                borderColor: '#00df9a',
-                backgroundColor: 'rgba(0,223,154,0.12)',
+                borderColor: '#00cec9',
+                backgroundColor: 'rgba(0,206,201,0.15)',
                 fill: true,
                 tension: 0.4,
                 pointRadius: 0,
@@ -3726,12 +3879,12 @@ function renderActivityExplorerChart(allItems, period) {
             }];
         } else {
             datasets = regionsSorted.map(function(reg, i) {
-                var hex = borderPal[i % borderPal.length];
+                var hex = connectBorderPal[i % connectBorderPal.length];
                 return {
                     label: reg,
                     data: perBucket.map(function(byReg) { return byReg[reg] || 0; }),
                     borderColor: hex,
-                    backgroundColor: hexToRgba(hex, 0.12),
+                    backgroundColor: hexToRgba(hex, 0.15),
                     fill: true,
                     tension: 0.4,
                     pointRadius: 0,
@@ -3840,6 +3993,49 @@ function renderActivityExplorerChart(allItems, period) {
             enabled: false,
             external: customRichTooltip
         };
+    } else if (mode === 'posture_audit') {
+        chartType = 'bar';
+        datasets = [
+            {
+                label: 'Violations Found',
+                data: timeBuckets.map(function(b) {
+                    return countAuditTypeInBucketRange(poolItems, 390, b.startMs, b.endMs) +
+                           countAuditTypeInBucketRange(poolItems, 374, b.startMs, b.endMs);
+                }),
+                backgroundColor: 'rgba(239,68,68,0.72)',
+                borderColor: '#ef4444',
+                borderWidth: 1
+            },
+            {
+                label: 'Resolved',
+                data: timeBuckets.map(function(b) {
+                    return countAuditTypeInBucketRange(poolItems, 391, b.startMs, b.endMs);
+                }),
+                backgroundColor: 'rgba(0,168,118,0.72)',
+                borderColor: '#00a876',
+                borderWidth: 1
+            },
+            {
+                label: 'Profile / Config',
+                data: timeBuckets.map(function(b) {
+                    return [387,388,389,392,393,394].reduce(function(s, tid) {
+                        return s + countAuditTypeInBucketRange(poolItems, tid, b.startMs, b.endMs);
+                    }, 0);
+                }),
+                backgroundColor: 'rgba(100,116,139,0.55)',
+                borderColor: '#64748b',
+                borderWidth: 1
+            }
+        ];
+        chartOptions.scales.x.stacked = false;
+        chartOptions.scales.y.stacked = false;
+        if (chartOptions.scales.y.title) chartOptions.scales.y.title.text = 'Events';
+
+        znAuditActivityPostureDailyInsights = buildPostureAuditDailyInsights(poolItems, timeBuckets);
+        chartOptions.plugins.tooltip = {
+            enabled: false,
+            external: customRichTooltip
+        };
     }
 
     if (chartType === 'bar') {
@@ -3861,11 +4057,33 @@ function renderActivityExplorerChart(allItems, period) {
                 openPolicyDrawer(dayLab, dayEvents);
                 return;
             }
-            var typeId = auditActivityBarTypeId(ctxClick.mode, dsIdx);
-            var matched = filterAuditsForActivityBarSegment(ctxClick.poolItems, typeId, bucket);
-            var ds = chart.data.datasets[dsIdx];
-            var typeLab = ds && ds.label != null ? String(ds.label) : String(typeId);
-            openJsonInspector('Audit Activity: ' + typeLab + ' on ' + dayLab, matched);
+            if (ctxClick.mode === 'posture_audit') {
+                var postureEvents = [];
+                [374, 387, 388, 389, 390, 391, 392, 393, 394].forEach(function(tid) {
+                    postureEvents = postureEvents.concat(filterAuditsForActivityBarSegment(ctxClick.poolItems, tid, bucket));
+                });
+                postureEvents.sort(function(a, b) { return (getAuditItemTs(b) || 0) - (getAuditItemTs(a) || 0); });
+                openPostureAuditDrawer(dayLab, postureEvents);
+                return;
+            }
+            if (ctxClick.mode === 'sessions') {
+                var sessEvents = [];
+                [97, 98, 99, 123].forEach(function(tid) {
+                    sessEvents = sessEvents.concat(filterAuditsForActivityBarSegment(ctxClick.poolItems, tid, bucket));
+                });
+                sessEvents.sort(function(a, b) { return (getAuditItemTs(b) || 0) - (getAuditItemTs(a) || 0); });
+                openSessionAuditDrawer(dayLab, sessEvents);
+                return;
+            }
+            if (ctxClick.mode === 'region_health') {
+                var rhEvents = [];
+                [351, 352].forEach(function(tid) {
+                    rhEvents = rhEvents.concat(filterAuditsForActivityBarSegment(ctxClick.poolItems, tid, bucket));
+                });
+                rhEvents.sort(function(a, b) { return (getAuditItemTs(b) || 0) - (getAuditItemTs(a) || 0); });
+                openRegionAuditDrawer(dayLab, rhEvents);
+                return;
+            }
         };
     } else {
         delete chartOptions.onClick;
@@ -3876,12 +4094,53 @@ function renderActivityExplorerChart(allItems, period) {
         type: chartType,
         data: { labels: newLabels, datasets: datasets },
         options: chartOptions,
-        plugins: [{
-            id: 'znDauLegendSync',
-            afterUpdate: function(chart) {
-                syncDauChartHtmlLegend(chart);
+        plugins: [
+            {
+                id: 'znDauLegendSync',
+                afterUpdate: function(chart) {
+                    syncDauChartHtmlLegend(chart);
+                }
+            },
+            {
+                id: 'znLinesOnTop',
+                afterDraw: function(chart) {
+                    if (activityChartMode !== 'connect') return;
+                    var ctx2 = chart.ctx;
+                    var ca = chart.chartArea;
+                    if (!ca) return;
+                    ctx2.save();
+                    ctx2.beginPath();
+                    ctx2.rect(ca.left, ca.top, ca.right - ca.left, ca.bottom - ca.top);
+                    ctx2.clip();
+                    chart.data.datasets.forEach(function(ds, i) {
+                        if (!chart.isDatasetVisible(i)) return;
+                        var meta = chart.getDatasetMeta(i);
+                        if (!meta || meta.type !== 'line') return;
+                        var pts = meta.data;
+                        if (!pts || pts.length < 2) return;
+                        ctx2.save();
+                        ctx2.beginPath();
+                        ctx2.moveTo(pts[0].x, pts[0].y);
+                        for (var j = 1; j < pts.length; j++) {
+                            var prev = pts[j - 1];
+                            var curr = pts[j];
+                            if (prev.cp2x !== undefined && curr.cp1x !== undefined) {
+                                ctx2.bezierCurveTo(prev.cp2x, prev.cp2y, curr.cp1x, curr.cp1y, curr.x, curr.y);
+                            } else {
+                                ctx2.lineTo(curr.x, curr.y);
+                            }
+                        }
+                        ctx2.strokeStyle = String(ds.borderColor || '#ccc').replace(/"/g, '');
+                        ctx2.lineWidth = ds.borderWidth || 2;
+                        ctx2.lineJoin = 'round';
+                        ctx2.lineCap = 'round';
+                        ctx2.stroke();
+                        ctx2.restore();
+                    });
+                    ctx2.restore();
+                }
             }
-        }]
+        ]
     });
     syncDauChartHtmlLegend(auditChartInstance);
     syncActivityChartControlUi();
@@ -4390,7 +4649,7 @@ function renderRegionHealthKpi(audItems) {
         return;
     }
 
-    kpiEl.textContent = upRegions + ' / ' + totalRegions;
+    kpiEl.textContent = upRegions + ' out of ' + totalRegions;
     if (downAmongKnown === 0) {
         kpiEl.classList.add('green');
         subEl.textContent = 'All regions operational.';
@@ -5432,7 +5691,7 @@ function insightTitleSeverityClass(colour) {
 
 /** Opening tag + classes/attributes for per-insight card (entire card opens modal). */
 function insightCardOpenTag(item) {
-    var cls = 'insight-card insight-card--interactive';
+    var cls = 'insight-card insight-card--interactive insight-card--' + (item.colour || 'amber');
     var kind = item.insightKind || '';
     return '<div class="' + cls + '" tabindex="0" role="button" data-insight-card="' + escapeHtmlAttr(kind) +
         '" aria-label="View details: ' + escapeHtmlAttr(item.title) + '">';
@@ -5449,6 +5708,12 @@ var INSIGHT_ADMIN_TOOLTIP_DEGRADED =
     "Why it's important: Devices that lose connectivity after reboot may be offline from policy updates and exposure windows. How it's calculated: Active sessions where Connect After Boot / connectivity-after-reboot reads as false.";
 var INSIGHT_ADMIN_TOOLTIP_FLAPPING =
     "Why it's important: Frequent reconnects can signal unstable clients, policy loops, or network issues worth investigating. How it's calculated: On the full paginated 30-day audit stream, flags any calendar day where a user has more than one Connect session created event (type 96).";
+var INSIGHT_ADMIN_TOOLTIP_POSTURE_VIOLATIONS =
+    "Why it's important: Users with open posture violations are not meeting the security requirements defined in your posture profiles. How it's calculated: Uses latest-event-wins per (user, check type) pair from the last 14 days. A pair is 'open' if the most recent event for that combination is a Violation Found (type 390), not a Violation Resolved (type 391). Capped to 14 days to avoid stale or superseded violations.";
+var INSIGHT_ADMIN_TOOLTIP_POSTURE_TOP_CHECK =
+    "Why it's important: Knowing which check type fails most often lets you prioritise the right remediation (OS update policy, MFA enforcement, password policy, etc.). How it's calculated: Counts all postureCheckType values across Violation Found events (type 390) in the last 14 days and returns the most frequent.";
+var INSIGHT_ADMIN_TOOLTIP_POSTURE_SPIKE =
+    "Why it's important: A sudden spike in violations may indicate a policy change, a new OS update that breaks posture rules, or a misconfiguration that needs urgent review. How it's calculated: Compares each day's violation count to the rolling daily average across the 30-day audit window. Triggers when the peak day is ≥3 violations and ≥2× the average.";
 
 function insightTitleBlockHtml(item) {
     var titleEsc = escapeHtmlAttr(item.title);
@@ -5527,6 +5792,44 @@ function renderInsights(lic, ses, aud, period) {
                 ' experienced multiple reconnects within a 24-hour period.',
             adminTooltip: INSIGHT_ADMIN_TOOLTIP_FLAPPING,
             insightKind: 'connection-flapping'
+        });
+    }
+
+    // ── Posture insights (audit-based) ─────────────────────────────────────
+    var postureAud = filterByPeriod(aud || [], '30d');
+    var activeViolCount = postureActiveViolationCount14d(postureAud);
+    if (activeViolCount > 0) {
+        items.push({
+            colour: 'red',
+            title: 'Active Posture Violations',
+            detail: activeViolCount + ' open violation' + (activeViolCount !== 1 ? 's' : '') +
+                ' detected across user/check-type pairs in the last 14 days.',
+            adminTooltip: INSIGHT_ADMIN_TOOLTIP_POSTURE_VIOLATIONS,
+            insightKind: 'posture-active-violations'
+        });
+    }
+
+    var topCheck = postureTopFailingCheck14d(postureAud);
+    if (topCheck) {
+        items.push({
+            colour: 'amber',
+            title: 'Top Failing Posture Check',
+            detail: postureCheckTypeLabel(topCheck.checkType) + ' is the most frequent violation — ' +
+                topCheck.count + ' occurrence' + (topCheck.count !== 1 ? 's' : '') + ' in the last 14 days.',
+            adminTooltip: INSIGHT_ADMIN_TOOLTIP_POSTURE_TOP_CHECK,
+            insightKind: 'posture-top-check'
+        });
+    }
+
+    var spike30 = postureViolationSpike30d(postureAud, buildLastNDayBuckets(30));
+    if (spike30) {
+        items.push({
+            colour: 'amber',
+            title: 'Posture Violation Spike',
+            detail: spike30.count + ' violations on ' + spike30.dayLabel +
+                ' vs a ' + spike30.avg + '/day average — investigate recent policy or OS changes.',
+            adminTooltip: INSIGHT_ADMIN_TOOLTIP_POSTURE_SPIKE,
+            insightKind: 'posture-spike'
         });
     }
 
@@ -5947,6 +6250,86 @@ function fireInsightCardAction(card) {
             'Connection Flapping',
             'Review recent audits for these accounts. Check for unstable networks, credential prompts, or policy changes causing repeated sign-ins.',
             ['User', 'Date', 'Reconnect Count'],
+            'amber'
+        );
+    } else if (kind === 'posture-active-violations') {
+        var posturePool14d = filterByPeriod(filterAuditsByDashboardFilters(aud), '30d');
+        var cutoff14 = Date.now() - 14 * 24 * 60 * 60 * 1000;
+        // Build rows: one per open (user, checkType) pair, latest-event-wins
+        var latestByKeyI = Object.create(null);
+        posturePool14d.forEach(function(item) {
+            var t = auditTypeToNum(item);
+            if (t !== 390 && t !== 391) return;
+            var ts = getAuditItemTs(item);
+            if (ts == null || ts < cutoff14) return;
+            var d = parseAuditDetails(item);
+            if (!d) return;
+            var uName = d.userName || item.reportedObjectId || '\u2014';
+            var checks = Array.isArray(d.postureCheckTypes) ? d.postureCheckTypes : [0];
+            checks.forEach(function(ct) {
+                var key = (d.userId || item.reportedObjectId || '') + ':' + ct;
+                if (!latestByKeyI[key] || ts > latestByKeyI[key].ts) {
+                    latestByKeyI[key] = { ts: ts, type: t, userName: uName, checkType: ct };
+                }
+            });
+        });
+        var violRows = Object.keys(latestByKeyI)
+            .filter(function(k) { return latestByKeyI[k].type === 390; })
+            .map(function(k) {
+                var e = latestByKeyI[k];
+                return [e.userName, postureCheckTypeLabel(e.checkType),
+                        new Date(e.ts).toLocaleDateString()];
+            })
+            .sort(function(a, b) { return a[0].localeCompare(b[0]); });
+        openInsightDrawer(
+            violRows,
+            'Active Posture Violations (14d)',
+            'Review posture profile rules for the failing check types listed. Users with open violations may be blocked from Connect access.',
+            ['User', 'Failing Check', 'Last Seen'],
+            'red'
+        );
+    } else if (kind === 'posture-top-check') {
+        var posturePool14dTC = filterByPeriod(filterAuditsByDashboardFilters(aud), '30d');
+        var cutoff14TC = Date.now() - 14 * 24 * 60 * 60 * 1000;
+        var checkRows = [];
+        posturePool14dTC.forEach(function(item) {
+            if (auditTypeToNum(item) !== 390) return;
+            var ts = getAuditItemTs(item);
+            if (ts == null || ts < cutoff14TC) return;
+            var d = parseAuditDetails(item);
+            if (!d) return;
+            var uName = d.userName || item.reportedObjectId || '\u2014';
+            var checks = Array.isArray(d.postureCheckTypes) ? d.postureCheckTypes : [];
+            checks.forEach(function(ct) {
+                checkRows.push([uName, postureCheckTypeLabel(ct), new Date(ts).toLocaleDateString()]);
+            });
+        });
+        checkRows.sort(function(a, b) { return a[1].localeCompare(b[1]) || a[0].localeCompare(b[0]); });
+        openInsightDrawer(
+            checkRows,
+            'Top Failing Posture Check (14d)',
+            'Identify which check type is causing the most violations and update the posture profile or remediate affected users.',
+            ['User', 'Check Type', 'Date'],
+            'amber'
+        );
+    } else if (kind === 'posture-spike') {
+        var posturePool30dSp = filterByPeriod(filterAuditsByDashboardFilters(aud), '30d');
+        var spikeRows = [];
+        posturePool30dSp.forEach(function(item) {
+            if (auditTypeToNum(item) !== 390 && auditTypeToNum(item) !== 374) return;
+            var ts = getAuditItemTs(item);
+            if (!ts) return;
+            var d = parseAuditDetails(item);
+            var uName = (d && d.userName) || (item.destinationEntitiesList && item.destinationEntitiesList[0] && item.destinationEntitiesList[0].name) || '\u2014';
+            var checks = (d && Array.isArray(d.postureCheckTypes)) ? d.postureCheckTypes.map(postureCheckTypeLabel).join(', ') : '\u2014';
+            spikeRows.push([uName, checks, new Date(ts).toLocaleDateString()]);
+        });
+        spikeRows.sort(function(a, b) { return b[2].localeCompare(a[2]); });
+        openInsightDrawer(
+            spikeRows,
+            'Posture Violation Spike (30d)',
+            'A high-volume violation day was detected. Check whether a policy change, OS update, or new posture profile rule caused this spike.',
+            ['User', 'Check Types', 'Date'],
             'amber'
         );
     }
@@ -7613,6 +7996,275 @@ function compareArrays(prevArray, currentArray, keyExtractor) {
     return { added: added, removed: removed };
 }
 
+// ── Posture Audit Drawer ───────────────────────────────────────────────────
+
+var postureAuditDrawerState = { events: [], dayLabel: '' };
+
+function openPostureAuditDrawer(dayLabel, eventsArray) {
+    var bd = document.getElementById('posture-audit-drawer-backdrop');
+    if (!bd) return;
+    postureAuditDrawerState.events   = eventsArray || [];
+    postureAuditDrawerState.dayLabel = dayLabel || '';
+    renderPostureAuditDrawerContent();
+    bd.classList.add('is-open');
+}
+
+function closePostureAuditDrawer() {
+    var bd = document.getElementById('posture-audit-drawer-backdrop');
+    if (bd) bd.classList.remove('is-open');
+}
+
+function renderPostureAuditDrawerContent() {
+    var events   = postureAuditDrawerState.events;
+    var dayLabel = postureAuditDrawerState.dayLabel;
+
+    // ── Stat boxes ────────────────────────────────────────────────────────
+    var found   = 0, resolved = 0, adminCh = 0;
+    events.forEach(function(ev) {
+        var t = auditTypeToNum(ev);
+        if (AUDIT_TYPES_POSTURE_VIOLATIONS[t])  found++;
+        else if (AUDIT_TYPES_POSTURE_RESOLVED[t]) resolved++;
+        else if (AUDIT_TYPES_POSTURE_ADMIN[t])    adminCh++;
+    });
+    var statsEl = document.getElementById('posture-audit-drawer-stats');
+    if (statsEl) {
+        var dayTxt = dayLabel ? ' on ' + dayLabel : '';
+        statsEl.innerHTML =
+            '<div class="ses-stat-box">' +
+                '<div class="ses-stat-num ' + (found > 0 ? 'amber' : '') + '">' + found + '</div>' +
+                '<div class="ses-stat-label">Violations Found' + dayTxt + '</div>' +
+            '</div>' +
+            '<div class="ses-stat-box">' +
+                '<div class="ses-stat-num ' + (resolved > 0 ? 'green' : '') + '">' + resolved + '</div>' +
+                '<div class="ses-stat-label">Resolved' + dayTxt + '</div>' +
+            '</div>' +
+            '<div class="ses-stat-box">' +
+                '<div class="ses-stat-num slate">' + adminCh + '</div>' +
+                '<div class="ses-stat-label">Profile / Config Changes</div>' +
+            '</div>';
+    }
+
+    // ── Event cards ───────────────────────────────────────────────────────
+    var contentEl = document.getElementById('posture-audit-drawer-content');
+    if (!contentEl) return;
+    if (!events.length) {
+        contentEl.innerHTML = '<div class="ses-empty">No posture events for this day.</div>';
+        return;
+    }
+    contentEl.innerHTML = events.map(function(ev) {
+        return renderPostureAuditEventCard(ev);
+    }).join('');
+}
+
+function renderPostureAuditEventCard(ev) {
+    var t   = auditTypeToNum(ev);
+    var ts  = getAuditItemTs(ev);
+    var timeStr = ts ? new Date(ts).toLocaleString() : '\u2014';
+    var badge   = postureAuditEventBadge(t);
+
+    // User / affected entity
+    var dest = ev.destinationEntitiesList;
+    var userName = (Array.isArray(dest) && dest.length > 0 && dest[0].name)
+        ? String(dest[0].name)
+        : ((ev.performedBy && ev.performedBy.name) ? String(ev.performedBy.name) : '\u2014');
+
+    var d = parseAuditDetails(ev);
+
+    // postureCheckTypes chips (for violations / resolved)
+    var chipsHtml = '';
+    if (d && Array.isArray(d.postureCheckTypes) && d.postureCheckTypes.length > 0) {
+        chipsHtml = '<div class="posture-check-chips">' +
+            d.postureCheckTypes.map(function(ct) {
+                return '<span class="posture-check-chip">' + escapeHtmlAttr(postureCheckTypeLabel(ct)) + '</span>';
+            }).join('') +
+        '</div>';
+    }
+
+    // Reason (resolved events)
+    var reasonHtml = '';
+    if (t === 391 && d && d.reason !== undefined && String(d.reason).trim()) {
+        reasonHtml = '<div class="posture-event-reason"><strong>Reason:</strong> ' +
+            escapeHtmlAttr(String(d.reason)) + '</div>';
+    }
+
+    // Profile/config detail (admin events)
+    var adminDetailHtml = '';
+    if (AUDIT_TYPES_POSTURE_ADMIN[t] && d) {
+        var profileName = d.profileName || d.name || d.displayName || null;
+        if (profileName) {
+            adminDetailHtml = '<div class="posture-event-detail"><strong>Profile:</strong> ' +
+                escapeHtmlAttr(String(profileName)) + '</div>';
+        }
+    }
+
+    return '<div class="posture-audit-event-card">' +
+        '<div class="posture-audit-card-header">' +
+            '<div class="posture-audit-card-user">' + escapeHtmlAttr(userName) + '</div>' +
+            '<div class="posture-audit-card-meta">' +
+                badge +
+                '<span class="posture-audit-card-time">' + escapeHtmlAttr(timeStr) + '</span>' +
+            '</div>' +
+        '</div>' +
+        (chipsHtml || reasonHtml || adminDetailHtml
+            ? '<div class="posture-audit-card-body">' + chipsHtml + reasonHtml + adminDetailHtml + '</div>'
+            : '') +
+    '</div>';
+}
+
+// ── Session Operations Audit Drawer ───────────────────────────────────────
+
+var sessionAuditDrawerState = { events: [], dayLabel: '' };
+
+var SESSION_OP_TYPE_LABELS = { 97: 'Expired', 98: 'Revoked', 99: 'Logout', 123: 'Extended' };
+
+function sessionAuditEventBadge(typeNum) {
+    var n = Number(typeNum);
+    if (n === 97)  return '<span class="posture-badge posture-badge--violation">Expired</span>';
+    if (n === 98)  return '<span class="posture-badge posture-badge--admin-del">Revoked</span>';
+    if (n === 99)  return '<span class="posture-badge posture-badge--admin">Logout</span>';
+    if (n === 123) return '<span class="posture-badge posture-badge--resolved">Extended</span>';
+    return '<span class="posture-badge posture-badge--admin">Event</span>';
+}
+
+function openSessionAuditDrawer(dayLabel, eventsArray) {
+    var bd = document.getElementById('session-audit-drawer-backdrop');
+    if (!bd) return;
+    sessionAuditDrawerState.events   = eventsArray || [];
+    sessionAuditDrawerState.dayLabel = dayLabel || '';
+    renderSessionAuditDrawerContent();
+    bd.classList.add('is-open');
+}
+
+function closeSessionAuditDrawer() {
+    var bd = document.getElementById('session-audit-drawer-backdrop');
+    if (bd) bd.classList.remove('is-open');
+}
+
+function renderSessionAuditDrawerContent() {
+    var events   = sessionAuditDrawerState.events;
+    var dayLabel = sessionAuditDrawerState.dayLabel;
+
+    var counts = { 97: 0, 98: 0, 99: 0, 123: 0 };
+    events.forEach(function(ev) { var t = auditTypeToNum(ev); if (counts[t] !== undefined) counts[t]++; });
+
+    var statsEl = document.getElementById('session-audit-drawer-stats');
+    if (statsEl) {
+        var dayTxt = dayLabel ? ' on ' + dayLabel : '';
+        statsEl.innerHTML =
+            '<div class="ses-stat-box"><div class="ses-stat-num ' + (counts[97] > 0 ? 'amber' : '') + '">' + counts[97] + '</div><div class="ses-stat-label">Expired' + dayTxt + '</div></div>' +
+            '<div class="ses-stat-box"><div class="ses-stat-num ' + (counts[98] > 0 ? 'red' : '') + '">' + counts[98] + '</div><div class="ses-stat-label">Revoked' + dayTxt + '</div></div>' +
+            '<div class="ses-stat-box"><div class="ses-stat-num slate">' + counts[99] + '</div><div class="ses-stat-label">Logout</div></div>' +
+            '<div class="ses-stat-box"><div class="ses-stat-num ' + (counts[123] > 0 ? 'green' : '') + '">' + counts[123] + '</div><div class="ses-stat-label">Extended</div></div>';
+    }
+
+    var contentEl = document.getElementById('session-audit-drawer-content');
+    if (!contentEl) return;
+    if (!events.length) {
+        contentEl.innerHTML = '<div class="ses-empty">No session operation events for this day.</div>';
+        return;
+    }
+    contentEl.innerHTML = events.map(function(ev) {
+        var t       = auditTypeToNum(ev);
+        var ts      = getAuditItemTs(ev);
+        var timeStr = ts ? new Date(ts).toLocaleString() : '\u2014';
+        var badge   = sessionAuditEventBadge(t);
+        var dest    = ev.destinationEntitiesList;
+        var user    = (Array.isArray(dest) && dest.length > 0 && dest[0].name)
+            ? String(dest[0].name)
+            : (auditActivitySessionDetailsUser(ev) || '\u2014');
+        var admin   = (ev.performedBy && ev.performedBy.name) ? String(ev.performedBy.name) : null;
+        var d       = parseAuditDetails(ev);
+        var device  = (d && (d.deviceName || d.asset || d.fqdn)) ? String(d.deviceName || d.asset || d.fqdn) : null;
+        var region  = (d && d.region) ? String(d.region) : null;
+        var bodyParts = [];
+        if (device) bodyParts.push('<div class="posture-event-detail"><strong>Device:</strong> ' + escapeHtmlAttr(device) + '</div>');
+        if (region) bodyParts.push('<div class="posture-event-detail"><strong>Region:</strong> ' + escapeHtmlAttr(region) + '</div>');
+        if (admin && admin !== user) bodyParts.push('<div class="posture-event-detail"><strong>Admin:</strong> ' + escapeHtmlAttr(admin) + '</div>');
+        return '<div class="posture-audit-event-card">' +
+            '<div class="posture-audit-card-header">' +
+                '<div class="posture-audit-card-user">' + escapeHtmlAttr(user) + '</div>' +
+                '<div class="posture-audit-card-meta">' + badge +
+                    '<span class="posture-audit-card-time">' + escapeHtmlAttr(timeStr) + '</span>' +
+                '</div>' +
+            '</div>' +
+            (bodyParts.length ? '<div class="posture-audit-card-body">' + bodyParts.join('') + '</div>' : '') +
+        '</div>';
+    }).join('');
+}
+
+// ── Region Health Audit Drawer ─────────────────────────────────────────────
+
+var regionAuditDrawerState = { events: [], dayLabel: '' };
+
+function regionAuditEventBadge(typeNum) {
+    var n = Number(typeNum);
+    if (n === 351) return '<span class="posture-badge posture-badge--violation">Region Down</span>';
+    if (n === 352) return '<span class="posture-badge posture-badge--resolved">Recovered</span>';
+    return '<span class="posture-badge posture-badge--admin">Event</span>';
+}
+
+function openRegionAuditDrawer(dayLabel, eventsArray) {
+    var bd = document.getElementById('region-audit-drawer-backdrop');
+    if (!bd) return;
+    regionAuditDrawerState.events   = eventsArray || [];
+    regionAuditDrawerState.dayLabel = dayLabel || '';
+    renderRegionAuditDrawerContent();
+    bd.classList.add('is-open');
+}
+
+function closeRegionAuditDrawer() {
+    var bd = document.getElementById('region-audit-drawer-backdrop');
+    if (bd) bd.classList.remove('is-open');
+}
+
+function renderRegionAuditDrawerContent() {
+    var events   = regionAuditDrawerState.events;
+    var dayLabel = regionAuditDrawerState.dayLabel;
+
+    var downCount = 0, recovCount = 0;
+    events.forEach(function(ev) {
+        var t = auditTypeToNum(ev);
+        if (t === 351) downCount++;
+        else if (t === 352) recovCount++;
+    });
+
+    var statsEl = document.getElementById('region-audit-drawer-stats');
+    if (statsEl) {
+        var dayTxt = dayLabel ? ' on ' + dayLabel : '';
+        statsEl.innerHTML =
+            '<div class="ses-stat-box"><div class="ses-stat-num ' + (downCount > 0 ? 'red' : '') + '">' + downCount + '</div><div class="ses-stat-label">Down Events' + dayTxt + '</div></div>' +
+            '<div class="ses-stat-box"><div class="ses-stat-num ' + (recovCount > 0 ? 'green' : '') + '">' + recovCount + '</div><div class="ses-stat-label">Recovered' + dayTxt + '</div></div>';
+    }
+
+    var contentEl = document.getElementById('region-audit-drawer-content');
+    if (!contentEl) return;
+    if (!events.length) {
+        contentEl.innerHTML = '<div class="ses-empty">No region health events for this day.</div>';
+        return;
+    }
+    contentEl.innerHTML = events.map(function(ev) {
+        var t       = auditTypeToNum(ev);
+        var ts      = getAuditItemTs(ev);
+        var timeStr = ts ? new Date(ts).toLocaleString() : '\u2014';
+        var badge   = regionAuditEventBadge(t);
+        var dest    = ev.destinationEntitiesList;
+        var regionName = (Array.isArray(dest) && dest.length > 0 && dest[0].name)
+            ? String(dest[0].name)
+            : ((ev.performedBy && ev.performedBy.name) ? String(ev.performedBy.name) : '\u2014');
+        var d     = parseAuditDetails(ev);
+        var extra = (d && d.serverName) ? String(d.serverName) : null;
+        return '<div class="posture-audit-event-card">' +
+            '<div class="posture-audit-card-header">' +
+                '<div class="posture-audit-card-user">' + escapeHtmlAttr(regionName) + '</div>' +
+                '<div class="posture-audit-card-meta">' + badge +
+                    '<span class="posture-audit-card-time">' + escapeHtmlAttr(timeStr) + '</span>' +
+                '</div>' +
+            '</div>' +
+            (extra ? '<div class="posture-audit-card-body"><div class="posture-event-detail"><strong>Server:</strong> ' + escapeHtmlAttr(extra) + '</div></div>' : '') +
+        '</div>';
+    }).join('');
+}
+
 // ── Wire all drawer close buttons + backdrop + Escape ─────────────────────
 (function() {
     function wireDrawer(backdropId, closeBtnId, closeFn) {
@@ -7627,6 +8279,9 @@ function compareArrays(prevArray, currentArray, keyExtractor) {
     wireDrawer('connect-versions-drawer-backdrop', 'cv-drawer-close',          closeConnectVersionsDrawer);
     wireDrawer('os-drawer-backdrop',               'os-drawer-close',          closeOsDrawer);
     wireDrawer('policy-drawer-backdrop',           'policy-drawer-close',      closePolicyDrawer);
+    wireDrawer('posture-audit-drawer-backdrop',    'posture-audit-drawer-close', closePostureAuditDrawer);
+    wireDrawer('session-audit-drawer-backdrop',    'session-audit-drawer-close', closeSessionAuditDrawer);
+    wireDrawer('region-audit-drawer-backdrop',     'region-audit-drawer-close',  closeRegionAuditDrawer);
     wireDrawer('insight-drawer-backdrop',          'insight-drawer-close',     closeInsightDrawer);
 
     // Wire region health drawer drill-down
@@ -7656,6 +8311,9 @@ function compareArrays(prevArray, currentArray, keyExtractor) {
         closeSessionsDrawer();
         closeRegionHealthDrawer();
         closePostureDrawer();
+        closePostureAuditDrawer();
+        closeSessionAuditDrawer();
+        closeRegionAuditDrawer();
         closeInsightDrawer();
     });
 }());
@@ -7829,6 +8487,68 @@ function renderAuditStreamWidgets(period) {
     catch(e) { console.error('[ZN] connectionTimeCard failed:', e); }
     try { renderAuditTypesCard(audFilteredScope, period); }
     catch(e) { console.error('[ZN] auditTypesCard failed:', e); }
+    try { renderPostureViolationsWidget(audFilteredScope); }
+    catch(e) { console.error('[ZN] postureViolationsWidget failed:', e); }
+}
+
+// ── Posture Violations Widget ──────────────────────────────────────────────
+function renderPostureViolationsWidget(audItems) {
+    var el = document.getElementById('card-posture-violations');
+    if (!el) return;
+
+    var pool14d = filterByPeriod(audItems || [], '30d')
+        .filter(function(item) {
+            var ts = getAuditItemTs(item);
+            return ts != null && ts >= Date.now() - 14 * 24 * 60 * 60 * 1000;
+        });
+
+    var found14    = pool14d.filter(function(i) { return auditTypeToNum(i) === 390 || auditTypeToNum(i) === 374; }).length;
+    var resolved14 = pool14d.filter(function(i) { return auditTypeToNum(i) === 391; }).length;
+
+    var checkCounts = postureCheckTypeCounts30d(filterByPeriod(audItems || [], '30d'));
+    var checkEntries = Object.keys(checkCounts)
+        .map(function(k) { return { ct: k, count: checkCounts[k] }; })
+        .sort(function(a, b) { return b.count - a.count; })
+        .slice(0, 6);
+
+    if (found14 === 0 && resolved14 === 0 && checkEntries.length === 0) {
+        el.innerHTML = '<div class="ses-empty" style="padding:12px 0">No posture violation data in the last 14 days.</div>';
+        return;
+    }
+
+    var maxCount = checkEntries.length > 0 ? checkEntries[0].count : 1;
+
+    var headlineHtml =
+        '<div class="posture-violations-headline">' +
+            '<div class="posture-violations-stat">' +
+                '<span class="posture-violations-num' + (found14 > 0 ? ' red' : '') + '">' + found14 + '</span>' +
+                '<span class="posture-violations-label">Found</span>' +
+            '</div>' +
+            '<div class="posture-violations-divider"></div>' +
+            '<div class="posture-violations-stat">' +
+                '<span class="posture-violations-num' + (resolved14 > 0 ? ' green' : '') + '">' + resolved14 + '</span>' +
+                '<span class="posture-violations-label">Resolved</span>' +
+            '</div>' +
+            '<div class="posture-violations-period">(14d)</div>' +
+        '</div>';
+
+    var barsHtml = '';
+    if (checkEntries.length > 0) {
+        barsHtml = '<div class="posture-check-bars-label">Top Failing Checks (30d)</div>' +
+            checkEntries.map(function(e) {
+                var pct = maxCount > 0 ? Math.round((e.count / maxCount) * 100) : 0;
+                var label = postureCheckTypeLabel(e.ct);
+                return '<div class="metric-row">' +
+                    '<span class="metric-label" title="' + escapeHtmlAttr(label) + '">' + escapeHtmlAttr(label) + '</span>' +
+                    '<div class="metric-bar-wrap">' +
+                        '<div class="metric-bar indigo" style="width:' + pct + '%"></div>' +
+                    '</div>' +
+                    '<span class="metric-count">' + e.count + '</span>' +
+                '</div>';
+            }).join('');
+    }
+
+    el.innerHTML = headlineHtml + barsHtml;
 }
 
 function applyTimeFilter(period) {
@@ -8288,64 +9008,6 @@ if (handleAuthReturn()) {
     // Normal dashboard initialization
     var tokenEl = document.getElementById('debug-token');
 
-var znAuthGateBtn = document.getElementById('zn-auth-gate-login');
-if (znAuthGateBtn) {
-    znAuthGateBtn.addEventListener('click', function() {
-        // Tell the parent portal page to navigate to the sign-in URL.
-        // The content script handles this message and redirects window.location.
-        window.parent.postMessage({ type: 'ZN_DASHBOARD_AUTH_REQUIRED' }, '*');
-    });
-}
-
-var znGateDumpBtn = document.getElementById('zn-gate-dump-btn');
-if (znGateDumpBtn) {
-    znGateDumpBtn.addEventListener('click', function() { znShowDebugDump(); });
-}
-
-// Manual token paste fallback (for fresh devices where the service worker
-// hasn't yet intercepted a portal API request to auto-capture the token).
-(function() {
-    var toggleBtn = document.getElementById('zn-gate-manual-toggle');
-    var section   = document.getElementById('zn-gate-manual-section');
-    var applyBtn  = document.getElementById('zn-gate-manual-apply');
-    var tokenInput = document.getElementById('zn-gate-token-input');
-    var errorEl   = document.getElementById('zn-gate-manual-error');
-
-    if (toggleBtn && section) {
-        toggleBtn.addEventListener('click', function() {
-            var open = section.classList.toggle('is-open');
-            toggleBtn.textContent = open
-                ? 'Hide manual entry'
-                : 'Having trouble? Paste your token manually';
-            if (open && tokenInput) tokenInput.focus();
-        });
-    }
-
-    if (applyBtn && tokenInput) {
-        applyBtn.addEventListener('click', function() {
-            var raw = tokenInput.value.trim();
-            var token = coerceDashBearerToken(raw);
-            if (!token) {
-                if (errorEl) errorEl.classList.add('is-visible');
-                return;
-            }
-            if (errorEl) errorEl.classList.remove('is-visible');
-            try {
-                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                    chrome.storage.local.get('znTokens', function(result) {
-                        var tokens = (result && result.znTokens) || {};
-                        tokens[ZN_PORTAL_HOSTNAME] = { token: token, at: Date.now() };
-                        chrome.storage.local.set({ znTokens: tokens });
-                    });
-                }
-                localStorage.setItem('znToken', token);
-            } catch (e) { /* noop */ }
-            hideAuthGate();
-            window.__znDash401Handled = false;
-            loadDashboard(token);
-        });
-    }
-}());
 
     readStoredZnToken(function(stored) {
         var ok = !!coerceDashBearerToken(stored);

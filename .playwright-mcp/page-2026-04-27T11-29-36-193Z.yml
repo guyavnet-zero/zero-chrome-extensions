@@ -1,0 +1,32 @@
+- generic [active]:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic [ref=e26]:
+            - region "Prototype controls": Skip to content
+            - generic [ref=e27]:
+              - generic [ref=e28]:
+                - generic [ref=e29]:
+                  - main:
+                    - paragraph [ref=e30]: Screenreader support is currently disabled. To enable it, use the Accessibility settings from the Options menu.
+                - generic:
+                  - navigation "Pages":
+                    - generic:
+                      - toolbar "Stepper":
+                        - generic:
+                          - generic:
+                            - button "Previous frame" [disabled]:
+                              - img
+                            - generic: 1 / 28
+                            - button "Next frame":
+                              - img
+                    - generic:
+                      - button "Restart":
+                        - img
+                        - text: Restart
+                        - generic: R
+              - text: Give feedback, ask a question, or just leave a note of appreciation. Click anywhere in the file to leave a comment.
+          - group [ref=e20]:
+            - alert [ref=e22]
+            - alert [ref=e24]

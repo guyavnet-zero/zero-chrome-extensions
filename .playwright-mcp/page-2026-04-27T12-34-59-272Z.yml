@@ -1,0 +1,420 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e10]:
+        - application [ref=e175]
+        - status [ref=e176]: Screenreader support for the board is currently disabled. To enable it via Accessibility settings, press ⌘K, type Accessibility Settings, and press Enter. To see available keyboard shortcuts, enter ⌃⇧Question mark .
+        - generic:
+          - generic:
+            - generic:
+              - region "Comments on canvas":
+                - button "Create new comment"
+                - button [ref=e178]:
+                  - generic [ref=e179]:
+                    - generic [ref=e181]: M
+                    - generic [ref=e183]: M
+                  - generic [ref=e184]: "4"
+        - generic:
+          - region "Left sidebar":
+            - generic [ref=e185]:
+              - generic [ref=e186]:
+                - generic [ref=e187]:
+                  - button "Main menu" [ref=e188]:
+                    - img [ref=e189]
+                    - img [ref=e192]
+                  - generic [ref=e194]:
+                    - generic [ref=e195]:
+                      - status
+                    - button "Minimize UI" [ref=e196]:
+                      - generic:
+                        - img
+                - generic [ref=e198]:
+                  - generic [ref=e200]:
+                    - generic [ref=e202]:
+                      - button "Connect Dashboard, file name" [ref=e203]: Connect Dashboard
+                      - generic [ref=e204]: File name
+                    - button "Edit file menu" [ref=e208]:
+                      - generic:
+                        - img
+                  - link "2026 Q2" [ref=e211]:
+                    - /url: https://www.figma.com/files/team/674249783164240635/project/552153725
+                - generic [ref=e212]:
+                  - generic [ref=e214]:
+                    - heading "Pages Find" [level=2] [ref=e215]:
+                      - generic [ref=e216]:
+                        - button "Pages" [expanded] [ref=e217]:
+                          - generic:
+                            - generic: Pages
+                        - button "Find" [ref=e220]:
+                          - generic:
+                            - img
+                    - generic [ref=e223]:
+                      - grid [ref=e230]:
+                        - row "Connect dashboard WIP" [ref=e232]:
+                          - gridcell "Connect dashboard WIP" [ref=e233]:
+                            - button "Connect dashboard WIP" [ref=e236]:
+                              - generic [ref=e238]: Connect dashboard WIP
+                      - slider "Resize handle" [ref=e239]
+                  - generic [ref=e241]:
+                    - heading "Layers" [level=2] [ref=e242]:
+                      - button "Layers" [expanded] [ref=e244]:
+                        - generic: Layers
+                    - generic [ref=e252]:
+                      - generic [ref=e254]:
+                        - img "Group" [ref=e257]:
+                          - img [ref=e259]
+                        - generic [ref=e262]: Group 1261157400
+                      - generic [ref=e264]:
+                        - img "Instance" [ref=e267]:
+                          - img [ref=e269]
+                        - generic [ref=e272]: Cursors
+                      - generic [ref=e274]:
+                        - img "Auto layout" [ref=e277]:
+                          - img [ref=e279]
+                        - generic [ref=e282]: Frame 1707480634
+                      - generic [ref=e284]:
+                        - img "Auto layout" [ref=e287]:
+                          - img [ref=e289]
+                        - generic [ref=e292]: Frame 1707480627
+                      - generic [ref=e294]:
+                        - img "Instance" [ref=e297]:
+                          - img [ref=e299]
+                        - generic [ref=e302]: Cursors
+                      - generic [ref=e304]:
+                        - img "Rectangle" [ref=e307]:
+                          - img [ref=e309]
+                        - generic [ref=e312]: Rectangle 34624420
+                      - generic [ref=e314]:
+                        - img "Vector" [ref=e317]:
+                          - img [ref=e319]
+                        - generic [ref=e322]: Vector 8
+                      - generic [ref=e324]:
+                        - img "Line" [ref=e327]:
+                          - img [ref=e329]
+                        - generic [ref=e332]: Line 348
+                      - generic [ref=e334]:
+                        - img "Line" [ref=e337]:
+                          - img [ref=e339]
+                        - generic [ref=e342]: Line 349
+                      - generic [ref=e344]:
+                        - img "Line" [ref=e347]:
+                          - img [ref=e349]
+                        - generic [ref=e352]: Line 347
+                      - generic [ref=e354]:
+                        - img "Line" [ref=e357]:
+                          - img [ref=e359]
+                        - generic [ref=e362]: Line 346
+                      - generic [ref=e364]:
+                        - img "Auto layout" [ref=e367]:
+                          - img [ref=e369]
+                        - generic [ref=e372]: Tabs
+                      - generic [ref=e374]:
+                        - img "Group" [ref=e377]:
+                          - img [ref=e379]
+                        - generic [ref=e382]: Group 1261157408
+                      - generic [ref=e384]:
+                        - img "Auto layout" [ref=e387]:
+                          - img [ref=e389]
+                        - generic [ref=e392]: Map- All connections
+                      - generic [ref=e394]:
+                        - img "Auto layout" [ref=e397]:
+                          - img [ref=e399]
+                        - generic [ref=e402]: Map- Regions tooltip
+                      - generic [ref=e404]:
+                        - img "Auto layout" [ref=e407]:
+                          - img [ref=e409]
+                        - generic [ref=e412]: Map- Regions
+                      - generic [ref=e414]:
+                        - img "Auto layout" [ref=e417]:
+                          - img [ref=e419]
+                        - generic [ref=e422]: Map- Users tooltip
+                      - generic [ref=e424]:
+                        - img "Auto layout" [ref=e427]:
+                          - img [ref=e429]
+                        - generic [ref=e432]: Map- Users
+                      - generic [ref=e434]:
+                        - img "Auto layout" [ref=e437]:
+                          - img [ref=e439]
+                        - generic [ref=e442]: Audit activity - drop down
+                      - generic [ref=e444]:
+                        - img "Auto layout" [ref=e447]:
+                          - img [ref=e449]
+                        - generic [ref=e452]: Audit activity - Session creation by region
+                      - generic [ref=e454]:
+                        - img "Auto layout" [ref=e457]:
+                          - img [ref=e459]
+                        - generic [ref=e462]: Audit activity - Session creation by region
+                      - generic [ref=e464]:
+                        - img "Auto layout" [ref=e467]:
+                          - img [ref=e469]
+                        - generic [ref=e472]: Audit activity - Session creation by region
+                      - generic [ref=e474]:
+                        - img "Frame" [ref=e477]:
+                          - img [ref=e479]
+                        - generic [ref=e482]: Clickable items
+                      - generic [ref=e484]:
+                        - img "Group" [ref=e487]:
+                          - img [ref=e489]
+                        - generic [ref=e492]: graph
+                      - generic [ref=e494]:
+                        - img "Auto layout" [ref=e497]:
+                          - img [ref=e499]
+                        - generic [ref=e502]: Audit activity - Regions health
+                      - generic [ref=e504]:
+                        - img "Auto layout" [ref=e507]:
+                          - img [ref=e509]
+                        - generic [ref=e512]: Audit activity - Regions health
+                      - generic [ref=e514]:
+                        - img "Auto layout" [ref=e517]:
+                          - img [ref=e519]
+                        - generic [ref=e522]: Audit activity - Policy operations
+                      - generic [ref=e524]:
+                        - img "Auto layout" [ref=e527]:
+                          - img [ref=e529]
+                        - generic [ref=e532]: Audit activity - Session operations
+                      - generic [ref=e534]:
+                        - img "Auto layout" [ref=e537]:
+                          - img [ref=e539]
+                        - generic [ref=e542]: Audit activity - Session operations
+                      - generic [ref=e544]:
+                        - img "Frame" [ref=e547]:
+                          - img [ref=e549]
+                        - generic [ref=e552]: Active sessions tooltip
+                      - generic [ref=e554]:
+                        - img "Frame" [ref=e557]:
+                          - img [ref=e559]
+                        - generic [ref=e562]: Posture drawer
+                      - generic [ref=e564]:
+                        - img "Frame" [ref=e567]:
+                          - img [ref=e569]
+                        - generic [ref=e572]: Regions health drawer
+                      - generic [ref=e574]:
+                        - img "Frame" [ref=e577]:
+                          - img [ref=e579]
+                        - generic [ref=e582]: Used policies from graph drawer
+                      - generic [ref=e584]:
+                        - img "Frame" [ref=e587]:
+                          - img [ref=e589]
+                        - generic [ref=e592]: Connect versions-drawer
+                      - generic [ref=e594]:
+                        - img "Frame" [ref=e597]:
+                          - img [ref=e599]
+                        - generic [ref=e602]: Connect versions-drawer
+                      - generic [ref=e604]:
+                        - img "Frame" [ref=e607]:
+                          - img [ref=e609]
+                        - generic [ref=e612]: Connect versions-drawer
+                      - generic [ref=e614]:
+                        - img "Frame" [ref=e617]:
+                          - img [ref=e619]
+                        - generic [ref=e622]: Unique users from graph-drawer
+                      - generic [ref=e624]:
+                        - img "Frame" [ref=e627]:
+                          - img [ref=e629]
+                        - generic [ref=e632]: Active sessions drawer
+                      - generic [ref=e634]:
+                        - img "Frame" [ref=e637]:
+                          - img [ref=e639]
+                        - generic [ref=e642]: Connect dashboard
+              - slider "Resize handle" [ref=e644]
+        - generic:
+          - generic:
+            - region "Right sidebar":
+              - generic [ref=e645]:
+                - generic [ref=e647]:
+                  - generic [ref=e649]:
+                    - generic [ref=e651]:
+                      - button "Multiplayer tools" [ref=e653]:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - img
+                                - generic:
+                                  - generic: g
+                        - img [ref=e656]
+                      - generic:
+                        - generic:
+                          - generic [ref=e659]:
+                            - button "Follow guy.avnet" [ref=e660]
+                            - generic [ref=e662]:
+                              - img [ref=e663]
+                              - generic [ref=e667]: g
+                          - generic [ref=e669]:
+                            - button "Follow Albert Estevez" [ref=e670]
+                            - generic [ref=e672]:
+                              - img [ref=e673]
+                              - generic [ref=e677]: A
+                    - generic [ref=e679]:
+                      - group "Prototype view" [ref=e680]:
+                        - button "Present" [ref=e681]:
+                          - generic:
+                            - img
+                        - button "Prototype view" [ref=e682]:
+                          - generic:
+                            - img
+                      - generic [ref=e683]:
+                        - button "Share" [ref=e684]
+                        - status
+                  - generic [ref=e685]:
+                    - tablist [ref=e687]:
+                      - tab "Comments" [selected] [ref=e688]:
+                        - generic [ref=e689]: Comments
+                        - generic [ref=e690]: Comments
+                      - tab "Properties" [ref=e691]:
+                        - generic [ref=e692]: Properties
+                        - generic [ref=e693]: Properties
+                    - button "7%" [ref=e695]:
+                      - text: 7%
+                      - img
+                  - dialog "Comments panel" [active] [ref=e697]:
+                    - generic [ref=e698]:
+                      - generic [ref=e700]:
+                        - img [ref=e702]
+                        - searchbox "Search for comments" [ref=e704]
+                      - generic [ref=e705]:
+                        - button "Sort/Filter" [ref=e706]:
+                          - generic:
+                            - generic:
+                              - img
+                        - button "Settings" [ref=e707]:
+                          - generic:
+                            - img
+                    - generic [ref=e713]:
+                      - generic [ref=e715]:
+                        - button "Select comment by Maya Fidel, is this total sessions or devices?, 0 replies" [ref=e716]
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: M
+                              - button "More Actions" [ref=e718]:
+                                - generic:
+                                  - img
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: "#9 · Connect dashboard WIP"
+                                  - generic:
+                                    - generic: Maya Fidel
+                                    - generic: 4 days ago
+                                - generic: is this total sessions or devices?
+                      - generic [ref=e720]:
+                        - button "Select comment by Maya Fidel, sort according to what?, 0 replies" [ref=e721]
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: M
+                              - button "More Actions" [ref=e723]:
+                                - generic:
+                                  - img
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: "#8 · Connect dashboard WIP"
+                                  - generic:
+                                    - generic: Maya Fidel
+                                    - generic: 4 days ago
+                                - generic: sort according to what?
+                      - generic [ref=e725]:
+                        - button "Select comment by Maya Fidel, Do we need asser, location and region? If yes, do we want to add to the session drawer OS per user?, 0 replies" [ref=e726]
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: M
+                              - button "More Actions" [ref=e728]:
+                                - generic:
+                                  - img
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: "#7 · Connect dashboard WIP"
+                                  - generic:
+                                    - generic: Maya Fidel
+                                    - generic: 4 days ago
+                                - generic:
+                                  - generic: Do we need asser, location and region? If yes, do we want to add to the session drawer OS per user?
+                      - generic [ref=e730]:
+                        - button "Select comment by Maya Fidel, should it be all sessions?, 0 replies" [ref=e731]
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: M
+                              - button "More Actions" [ref=e733]:
+                                - generic:
+                                  - img
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - generic: "#6 · Connect dashboard WIP"
+                                  - generic:
+                                    - generic: Maya Fidel
+                                    - generic: 4 days ago
+                                - generic: should it be all sessions?
+                - slider "Resize handle" [ref=e734]
+      - generic:
+        - generic:
+          - generic:
+            - region "Application toolbar":
+              - generic [ref=e735]:
+                - toolbar "Editor" [ref=e737]:
+                  - generic [ref=e739]:
+                    - generic:
+                      - generic [ref=e742]:
+                        - generic [ref=e743]:
+                          - button "Move" [pressed] [ref=e744]:
+                            - img
+                          - button "Hand tool" [ref=e745]:
+                            - img
+                          - button "Comment" [ref=e746]:
+                            - img
+                        - group "Frame" [ref=e748]:
+                          - button [disabled] [ref=e749]:
+                            - img
+                          - button [disabled] [ref=e750]:
+                            - generic:
+                              - img
+                        - group "Rectangle" [ref=e751]:
+                          - button [disabled] [ref=e752]:
+                            - img
+                          - button [disabled] [ref=e753]:
+                            - generic:
+                              - img
+                        - group "Pen" [ref=e754]:
+                          - button [disabled] [ref=e755]:
+                            - img
+                          - button [disabled] [ref=e756]:
+                            - generic:
+                              - img
+                        - button [disabled] [ref=e757]:
+                          - img
+                        - button [disabled] [ref=e758]:
+                          - img
+                      - text: Request sent
+                  - generic [ref=e763]:
+                    - checkbox "Dev Mode" [ref=e765]
+                    - img [ref=e767]
+                - generic [ref=e770]:
+                  - img [ref=e772]
+                  - generic [ref=e775]: You can only view and comment on this file.
+                  - button "Ask to edit" [ref=e777]:
+                    - generic [ref=e778]: Ask to edit
+                  - button "Close" [ref=e779]:
+                    - generic:
+                      - img
+    - region "Help/zoom toolbar" [ref=e163]:
+      - toolbar "Help/zoom toolbar" [ref=e165]:
+        - button "Help" [ref=e167]:
+          - img
+  - generic:
+    - status
+    - group [ref=e169]:
+      - alert [ref=e171]
+      - alert [ref=e173]

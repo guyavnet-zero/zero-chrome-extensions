@@ -3,15 +3,22 @@ import pkg from './package.json'
 
 export default defineManifest({
   manifest_version: 3,
-  name: pkg.name,
+  name: 'Zero Connect Extension',
   version: pkg.version,
   icons: {
-    48: 'public/logo.png',
+    16: 'public/icon-16.png',
+    32: 'public/icon-32.png',
+    48: 'public/icon-48.png',
+    128: 'public/icon-128.png',
   },
   action: {
     default_icon: {
-      48: 'public/logo.png',
+      16: 'public/icon-16.png',
+      32: 'public/icon-32.png',
+      48: 'public/icon-48.png',
+      128: 'public/icon-128.png',
     },
+    default_popup: 'src/popup/index.html',
   },
   background: {
     service_worker: 'src/background/index.ts',
@@ -39,6 +46,8 @@ export default defineManifest({
     'contentSettings',
     'storage',
     'webRequest',
+    'windows',
+    'alarms',
   ],
   host_permissions: [
     '*://*.zeronetworks.com/*',
@@ -46,6 +55,11 @@ export default defineManifest({
     'https://ipinfo.io/*',
     'https://ipapi.co/*',
     'https://get.geojs.io/*',
+    'https://gist.githubusercontent.com/*',
+    'https://www.google-analytics.com/*',
+    'https://tiles.openfreemap.org/*',
+    'https://*.openfreemap.org/*',
+    'https://formspree.io/*',
   ],
   web_accessible_resources: [
     {

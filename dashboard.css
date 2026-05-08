@@ -101,7 +101,7 @@ body {
   background: rgba(0, 223, 154, 0.1);
   font-weight: 600;
 }
-.nav-item svg { flex-shrink: 0; }
+.nav-item svg { flex-shrink: 0; width: 16px; height: 16px; }
 
 .sidebar-top { flex: 1; }
 
@@ -155,8 +155,18 @@ body {
 .breadcrumb {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   flex-shrink: 0;
+}
+.breadcrumb-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.breadcrumb-icon svg {
+  width: 22px;
+  height: 22px;
 }
 .breadcrumb-parent {
   font-size: 13px;
@@ -294,7 +304,7 @@ body {
   align-items: center;
   justify-content: center;
 }
-.icon-license  { background: rgba(0,223,154,0.12); color: var(--brand); }
+.icon-license  { background: rgba(112,131,233,0.12); color: #7083e9; }
 .icon-sessions { background: rgba(59,130,246,0.12); color: var(--info); }
 .icon-disconnected { background: rgba(245,158,11,0.12); color: var(--warn); }
 .icon-audit    { background: rgba(79,70,229,0.12); color: #4f46e5; }

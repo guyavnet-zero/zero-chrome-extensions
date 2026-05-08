@@ -1,0 +1,30 @@
+---
+description: Which files the Chrome extension actually serves — always edit these, never the duplicates
+alwaysApply: true
+---
+
+# Source-of-Truth Files for the Chrome Extension
+
+The extension is loaded from the `pages/connect/` directory. **All UI fixes must go here.**
+
+## Canonical files
+
+| Purpose | Edit this file | NOT this one |
+|---|---|---|
+| Dashboard HTML | `pages/connect/index.html` | ~~`index.html`~~ / ~~`pages/dashboard/index.html`~~ |
+| Dashboard CSS | `pages/connect/index.css` | ~~`index.css`~~ / ~~`pages/dashboard/dashboard.css`~~ |
+| Dashboard logic | `pages/connect/dashboard-logic.js` | ~~`dashboard-logic.js`~~ / ~~`pages/dashboard/dashboard.js`~~ |
+
+## How to confirm you're in the right file
+
+When in doubt, run this in the browser console on the extension page:
+
+```js
+[...document.styleSheets].map(s => s.href)
+```
+
+The result will contain `chrome-extension://.../pages/connect/index.css` — confirming `pages/connect/` is what's live.
+
+## Rule
+
+Before editing any dashboard HTML/CSS/JS, check that the file path starts with `pages/connect/`. If you find yourself editing root-level or `pages/dashboard/` files for a dashboard UI change, stop and redirect to `pages/connect/`.

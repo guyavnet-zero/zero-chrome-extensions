@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zero Networks | Connect Dashboard (#1)</title>
+    <link rel="stylesheet" href="../../libs/maplibre-gl.css" />
+    <script src="../../libs/chart.min.js"></script>
+    <script src="../../libs/maplibre-gl.js"></script>
+    <link rel="stylesheet" href="./index.css" />
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="brand">ZERO</span><span class="brand-dot">.</span>
+        </div>
+        <a href="#" class="sidebar-back-link" aria-label="Back to main menu">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Back to main menu
+        </a>
+        <div class="sidebar-body">
+            <div class="sidebar-section-label">Connect</div>
+            <nav class="sidebar-nav">
+                <a href="#" class="sidebar-nav-item active" data-page="dashboard">
+                    <svg class="nav-icon" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g clip-path="url(#clip-dash-nav)"><path d="M20.125 19.25H18.375V22.75H20.125V19.25Z" fill="currentColor"/><path d="M9.625 17.5H7.875V22.75H9.625V17.5Z" fill="currentColor"/><path d="M16.625 14H14.875V22.75H16.625V14Z" fill="currentColor"/><path d="M13.125 15.75H11.375V22.75H13.125V15.75Z" fill="currentColor"/><path d="M24.5 1.75H3.5C3.03601 1.75046 2.59116 1.93499 2.26307 2.26307C1.93499 2.59116 1.75046 3.03601 1.75 3.5V24.5C1.75053 24.964 1.93508 25.4088 2.26315 25.7368C2.59122 26.0649 3.03603 26.2495 3.5 26.25H24.5C24.9639 26.2494 25.4087 26.0648 25.7367 25.7367C26.0648 25.4087 26.2494 24.9639 26.25 24.5V3.5C26.2495 3.03603 26.0649 2.59122 25.7368 2.26315C25.4088 1.93508 24.964 1.75053 24.5 1.75ZM24.5 9.625H12.25V3.5H24.5V9.625ZM10.5 3.5V9.625H3.5V3.5H10.5ZM3.5 24.5V11.375H24.5006L24.5018 24.5H3.5Z" fill="currentColor"/></g><defs><clipPath id="clip-dash-nav"><rect width="28" height="28" fill="white"/></clipPath></defs></svg>
+                    Dashboard
+                </a>
+                <a href="#" class="sidebar-nav-item" data-page="sessions">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Sessions
+                </a>
+                <a href="#" class="sidebar-nav-item" data-page="policies">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    Policies
+                </a>
+                <a href="#" class="sidebar-nav-item" data-page="device-posture">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    Device Posture
+                </a>
+            </nav>
+        </div>
+        <div class="sidebar-footer">
+            <div class="sidebar-section-label">Admin</div>
+            <nav class="sidebar-nav">
+                <a href="#" class="sidebar-nav-item" data-page="audit">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Audit
+                </a>
+                <a href="#" class="sidebar-nav-item" data-page="settings">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    Settings
+                </a>
+            </nav>
+        </div>
+    </aside>
+
+    <div class="main-col">
+
+        <header class="topbar" id="dashboard-page-header">
+            <div class="topbar-row topbar-row--main">
+                <div class="topbar-breadcrumb">
+                    <div class="topbar-page-icon" aria-hidden="true">
+                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_60_1697)"><path d="M20.125 19.25H18.375V22.75H20.125V19.25Z" fill="#0CD89B"/><path d="M9.625 17.5H7.875V22.75H9.625V17.5Z" fill="#0CD89B"/><path d="M16.625 14H14.875V22.75H16.625V14Z" fill="#0CD89B"/><path d="M13.125 15.75H11.375V22.75H13.125V15.75Z" fill="#0CD89B"/><path d="M24.5 1.75H3.5C3.03601 1.75046 2.59116 1.93499 2.26307 2.26307C1.93499 2.59116 1.75046 3.03601 1.75 3.5V24.5C1.75053 24.964 1.93508 25.4088 2.26315 25.7368C2.59122 26.0649 3.03603 26.2495 3.5 26.25H24.5C24.9639 26.2494 25.4087 26.0648 25.7367 25.7367C26.0648 25.4087 26.2494 24.9639 26.25 24.5V3.5C26.2495 3.03603 26.0649 2.59122 25.7368 2.26315C25.4088 1.93508 24.964 1.75053 24.5 1.75ZM24.5 9.625H12.25V3.5H24.5V9.625ZM10.5 3.5V9.625H3.5V3.5H10.5ZM3.5 24.5V11.375H24.5006L24.5018 24.5H3.5Z" fill="#0CD89B"/></g><defs><clipPath id="clip0_60_1697"><rect width="28" height="28" fill="white"/></clipPath></defs></svg>
+                    </div>
+                    <div class="topbar-title-group">
+                        <div class="topbar-bc-parent">Connect <span class="topbar-bc-sep">/</span></div>
+                        <div class="topbar-bc-current">Dashboard</div>
+                    </div>
+                </div>
+
+                <!-- ── Top-right action widgets ──────────────────────────── -->
+                <div class="topbar-actions">
+                <!-- System health indicator -->
+                <div id="topbar-health" class="topbar-health-wrap hidden" title="System Health">
+                    <span id="topbar-health-dot" class="health-dot"></span>
+                    <span id="topbar-health-label" class="health-label">Healthy</span>
+                </div>
+
+                <!-- System is learning badge -->
+                <div id="topbar-learning" class="topbar-learning-badge hidden" title="System is learning">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    System is learning
+                </div>
+
+                <!-- Export PDF -->
+                <button id="export-pdf-btn" class="topbar-export-btn" title="Export dashboard as PDF">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <path d="M13,12v2H3v-2H2v2c0,0.6,0.4,1,1,1h10c0.6,0,1-0.4,1-1v-2H13z"/>
+                        <path d="M3 6 3.7 6.7 7.5 2.9 7.5 12 8.5 12 8.5 2.9 12.3 6.7 13 6 8 1z"/>
+                    </svg>
+                    Export PDF
+                </button>
+
+            </div>
+            </div><!-- /.topbar-row--main -->
+
+            <div class="topbar-row topbar-row--search">
+                <div class="search-wrap">
+                    <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.4"/>
+                        <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                    </svg>
+                    <input type="text" id="global-user-input" class="search-input" placeholder="Search for user" autocomplete="off" aria-label="Search user">
+                    <ul id="autocomplete-results" class="hidden" role="listbox" aria-label="User name suggestions"></ul>
+                    <button type="button" id="clear-user-search" class="search-clear hidden" aria-label="Clear search">✕</button>
+                </div>
+                <div class="search-wrap">
+                    <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.4"/>
+                        <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                    </svg>
+                    <input type="text" id="region-filter-input" class="search-input" placeholder="Search for region" autocomplete="off" aria-label="Search region">
+                    <ul id="region-autocomplete-results" class="hidden" role="listbox" aria-label="Region name suggestions"></ul>
+                    <button type="button" id="clear-region-search" class="search-clear hidden" aria-label="Clear search">✕</button>
+                </div>
+            </div><!-- /.topbar-row--search -->
+        </header>
+
+        <main id="dashboard-container" class="content dashboard-grid">
+
+            <!-- ── KPI tiles ────────────────────────────────────────────── -->
+            <div class="stats-grid grid-full">
+                <div class="card license-capacity-card">
+                    <div class="kpi-header">
+                        <div class="card-label widget-title" id="header-license">License capacity</div>
+                        <div class="kpi-icon kpi-icon-indigo">
+                            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8.76029 0.221973C8.28912 -0.073991 7.69749 -0.073991 7.22633 0.221973C6.93988 0.401764 6.73374 0.501341 6.53028 0.556662C6.32683 0.611982 6.09928 0.63411 5.76464 0.625812C5.21316 0.611982 4.70184 0.91901 4.43681 1.41689C4.27619 1.71839 4.14501 1.91201 3.99509 2.06691C3.84518 2.22181 3.66313 2.35734 3.37133 2.5233C2.88678 2.79714 2.5923 3.32545 2.60569 3.89525C2.61372 4.241 2.5923 4.47335 2.53876 4.68633C2.48522 4.89931 2.38885 5.10953 2.21484 5.40549C1.92839 5.89231 1.92839 6.5036 2.21484 6.99042C2.38885 7.28639 2.48522 7.49937 2.53876 7.70959C2.5923 7.91981 2.61372 8.15492 2.60569 8.50067C2.5923 9.07047 2.88946 9.59878 3.37133 9.87262C3.66313 10.0386 3.85053 10.1741 4.00045 10.329C4.15036 10.4839 4.28154 10.6748 4.44216 10.979L3.10898 13.5708C2.88678 13.9995 3.04205 14.5361 3.45968 14.7657L5.4889 15.8942C5.90653 16.1266 6.42856 15.9634 6.65343 15.5291L8 12.9014L9.34657 15.5291C9.56877 15.9634 10.0908 16.1266 10.5111 15.8942L12.5403 14.7657C12.9553 14.5334 13.1132 13.9995 12.891 13.5708L11.5552 10.979C11.7185 10.6775 11.8496 10.4839 11.9996 10.329C12.1495 10.1741 12.3342 10.0386 12.6287 9.87262C13.1132 9.59878 13.4077 9.07047 13.3943 8.50067C13.3863 8.15492 13.4077 7.92257 13.4612 7.70959C13.5148 7.49661 13.6112 7.28639 13.7852 6.99042C14.0716 6.5036 14.0716 5.89231 13.7852 5.40549C13.6112 5.10953 13.5148 4.89655 13.4612 4.68633C13.4077 4.47611 13.3863 4.241 13.3943 3.89525C13.4077 3.32545 13.1105 2.79714 12.6287 2.5233C12.3369 2.35734 12.1495 2.22181 11.9996 2.06691C11.8496 1.91201 11.7185 1.72116 11.5578 1.41689C11.2928 0.916244 10.7815 0.611982 10.23 0.625812C9.89537 0.63411 9.6705 0.611982 9.46436 0.556662C9.25823 0.501341 9.05477 0.401764 8.76832 0.221973H8.76029ZM10.902 11.6097L12.1254 13.9802L10.0962 15.1087L8.62644 12.2431C8.67195 12.221 8.71478 12.1961 8.75761 12.1684C9.04406 11.9886 9.2502 11.889 9.45365 11.8337C9.65711 11.7784 9.88466 11.7563 10.2193 11.7646C10.4602 11.7701 10.6931 11.7148 10.902 11.6097ZM3.86124 13.9829L5.08466 11.6124C5.29347 11.7176 5.52638 11.7729 5.76732 11.7673C6.10195 11.759 6.32683 11.7812 6.53296 11.8365C6.7391 11.8918 6.94255 11.9914 7.229 12.1712C7.27183 12.1988 7.31467 12.2237 7.36018 12.2459L5.89046 15.1142L3.86124 13.9857V13.9829ZM7.6734 0.979863C7.8715 0.855392 8.11779 0.855392 8.3159 0.979863C8.63714 1.18178 8.92359 1.32562 9.23681 1.41413C9.55003 1.50264 9.86592 1.522 10.2434 1.5137C10.4736 1.50817 10.6878 1.63541 10.8002 1.84563C10.9796 2.18861 11.159 2.45968 11.3865 2.69756C11.6141 2.93544 11.8764 3.11523 12.2084 3.30055C12.4118 3.41396 12.535 3.63524 12.5296 3.87589C12.5216 4.26589 12.543 4.59228 12.626 4.91591C12.709 5.23953 12.8509 5.53273 13.0463 5.86742C13.1668 6.07211 13.1668 6.32658 13.0463 6.53127C12.8509 6.86319 12.7117 7.15915 12.626 7.48278C12.5403 7.8064 12.5216 8.13279 12.5296 8.5228C12.535 8.76068 12.4118 8.98196 12.2084 9.09813C11.8791 9.28345 11.6141 9.46878 11.3838 9.70389C11.1536 9.939 10.9769 10.2128 10.7975 10.5558C10.6878 10.766 10.4736 10.8933 10.2407 10.8877C9.86325 10.8794 9.54735 10.9016 9.23413 10.9873C8.92091 11.0731 8.63714 11.2114 8.3159 11.4133C8.11779 11.5378 7.8715 11.5378 7.6734 11.4133C7.35215 11.2114 7.0657 11.0675 6.75248 10.979C6.43926 10.8905 6.12337 10.8712 5.7459 10.8794C5.51567 10.885 5.30151 10.7577 5.18907 10.5475C5.0097 10.2073 4.83034 9.93347 4.60279 9.69559C4.37524 9.45771 4.11288 9.27792 3.78093 9.0926C3.57747 8.97919 3.45432 8.75791 3.45968 8.51727C3.46771 8.12726 3.44629 7.80087 3.3633 7.47724C3.28031 7.15362 3.1411 6.86042 2.94568 6.5285C2.82521 6.32381 2.82521 6.06934 2.94568 5.86465C3.1411 5.53273 3.28031 5.23677 3.36598 4.91314C3.45165 4.58952 3.47038 4.26313 3.46235 3.87312C3.457 3.63524 3.58015 3.41396 3.7836 3.29779C4.11556 3.11246 4.37791 2.92714 4.60814 2.69203C4.83837 2.45692 5.01238 2.18585 5.19175 1.84286C5.30151 1.63264 5.51567 1.50541 5.74858 1.51094C6.12605 1.51924 6.44194 1.49711 6.75516 1.41136C7.06838 1.32562 7.35215 1.18178 7.6734 0.979863ZM10.1363 6.19658C10.1363 6.78345 9.91067 7.34629 9.50903 7.76127C9.10739 8.17626 8.56265 8.40939 7.99465 8.40939C7.42664 8.40939 6.8819 8.17626 6.48026 7.76127C6.07862 7.34629 5.85298 6.78345 5.85298 6.19658C5.85298 5.6097 6.07862 5.04686 6.48026 4.63188C6.8819 4.2169 7.42664 3.98376 7.99465 3.98376C8.56265 3.98376 9.10739 4.2169 9.50903 4.63188C9.91067 5.04686 10.1363 5.6097 10.1363 6.19658ZM7.99465 3.09863C7.6009 3.09863 7.21101 3.17876 6.84724 3.33445C6.48346 3.49014 6.15293 3.71833 5.87451 4.006C5.59609 4.29367 5.37523 4.63519 5.22455 5.01104C5.07387 5.3869 4.99632 5.78975 4.99632 6.19658C4.99632 6.6034 5.07387 7.00625 5.22455 7.38211C5.37523 7.75797 5.59609 8.09948 5.87451 8.38715C6.15293 8.67482 6.48346 8.90302 6.84724 9.0587C7.21101 9.21439 7.6009 9.29452 7.99465 9.29452C8.38839 9.29452 8.77828 9.21439 9.14206 9.0587C9.50583 8.90302 9.83636 8.67482 10.1148 8.38715C10.3932 8.09948 10.6141 7.75797 10.7647 7.38211C10.9154 7.00625 10.993 6.6034 10.993 6.19658C10.993 5.78975 10.9154 5.3869 10.7647 5.01104C10.6141 4.63519 10.3932 4.29367 10.1148 4.006C9.83636 3.71833 9.50583 3.49014 9.14206 3.33445C8.77828 3.17876 8.38839 3.09863 7.99465 3.09863Z"/></svg>
+                        </div>
+                    </div>
+                    <div id="kpi-licenses" class="widget-primary-metric">&mdash; / &mdash;</div>
+                    <div class="license-bar-wrap"><div id="license-bar" class="license-bar" style="width:0%"></div></div>
+                </div>
+                <div class="card">
+                    <div class="kpi-header">
+                        <div class="card-label widget-title" id="header-kpi-sessions">Active sessions</div>
+                        <div class="kpi-icon kpi-icon-green">
+                            <svg viewBox="0 0 32 32" fill="currentColor"><path d="M30 30h-2v-5a5.006 5.006 0 0 0-5-5v-2a7.01 7.01 0 0 1 7 7Z"/><path d="M22 30h-2v-5a5.006 5.006 0 0 0-5-5H9a5.006 5.006 0 0 0-5 5v5H2v-5a7.01 7.01 0 0 1 7-7h6a7.01 7.01 0 0 1 7 7Z"/><path d="M20 2v2a5 5 0 0 1 0 10v2a7 7 0 0 0 0-14"/><path d="M12 4A5 5 0 1 1 7 9a5 5 0 0 1 5-5m0-2a7 7 0 1 0 7 7a7 7 0 0 0-7-7"/></svg>
+                        </div>
+                    </div>
+                    <div id="kpi-sessions-trigger" class="kpi-value-clickable kpi-sessions-trigger-block" title="Click to view session breakdown">
+                        <div id="kpi-sessions-summary" class="kpi-sessions-summary">
+                            <span class="widget-primary-metric text-green" id="kpi-active-count">&mdash;</span>
+                            <span class="kpi-out-of"> out of <span id="kpi-total-sessions">&mdash;</span></span>
+                            <span id="kpi-offline-count" style="display:none"></span>
+                        </div>
+                    </div>
+                    <div class="kpi-trend" id="trend-active"></div>
+                </div>
+                <div class="card">
+                    <div class="kpi-header">
+                        <div class="card-label widget-title" id="header-region-health">Regions health</div>
+                        <div class="kpi-icon kpi-icon-blue">
+                            <svg viewBox="0 0 32 32" fill="currentColor"><path d="M30 16a14.031 14.031 0 1 0-7.14 12.191l.117.026l.024-.111A14 14 0 0 0 30 16M4 16a12 12 0 0 1 .395-3h4.243l4.992 4.16l-1.91 2.546a2.01 2.01 0 0 0 .186 2.614L14 24.414v3.405A12.01 12.01 0 0 1 4 16m9.32 4.906l3.05-4.066L9.362 11H5.106a11.962 11.962 0 0 1 17.778-4.813L22.279 8h-5.693l-3.043 3.043l9.354 8.313l-1.649 7.419A11.9 11.9 0 0 1 16 28v-4.414Zm10.315 4.344l1.213-5.46a2 2 0 0 0-.623-1.927l-7.768-6.906l.957-.957h4.865a2 2 0 0 0 1.898-1.368l.353-1.06a11.98 11.98 0 0 1-.895 17.679Z"/></svg>
+                        </div>
+                    </div>
+                    <div id="kpi-regions-trigger" class="kpi-value-clickable" title="Click to view region details">
+                        <div id="regions-kpi" class="widget-primary-metric">&mdash;</div>
+                    </div>
+                    <div class="kpi-trend" id="regions-subtext" style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem; display: none;"></div>
+                </div>
+                <div class="card" id="kpi-posture-card">
+                    <div class="kpi-header">
+                        <div class="card-label widget-title" id="header-posture">Active sessions posture</div>
+                        <div class="kpi-icon kpi-icon-indigo">
+                            <svg width="16" height="13" viewBox="0 0 16 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.41406 0.777695C4.56719 0.546445 4.50469 0.23707 4.27656 0.0839449C4.04844 -0.0691801 3.73594 -0.00668021 3.58281 0.221445L1.92031 2.71519L0.851562 1.64644C0.657812 1.45269 0.339062 1.45269 0.145312 1.64644C-0.0484375 1.84019 -0.0484375 2.15895 0.145312 2.35269L1.64531 3.85269C1.75156 3.95895 1.89844 4.01207 2.04844 3.99644C2.19844 3.98082 2.33281 3.89957 2.41406 3.77769L4.41406 0.777695ZM6.49844 1.49957C6.22344 1.49957 5.99844 1.72457 5.99844 1.99957C5.99844 2.27457 6.22344 2.49957 6.49844 2.49957H15.4984C15.7734 2.49957 15.9984 2.27457 15.9984 1.99957C15.9984 1.72457 15.7734 1.49957 15.4984 1.49957H6.49844ZM6.49844 6.49957C6.22344 6.49957 5.99844 6.72457 5.99844 6.99957C5.99844 7.27457 6.22344 7.49957 6.49844 7.49957H15.4984C15.7734 7.49957 15.9984 7.27457 15.9984 6.99957C15.9984 6.72457 15.7734 6.49957 15.4984 6.49957H6.49844ZM5.49844 11.4996C5.22344 11.4996 4.99844 11.7246 4.99844 11.9996C4.99844 12.2746 5.22344 12.4996 5.49844 12.4996H15.4984C15.7734 12.4996 15.9984 12.2746 15.9984 11.9996C15.9984 11.7246 15.7734 11.4996 15.4984 11.4996H5.49844ZM1.74844 11.2496C1.54953 11.2496 1.35876 11.3286 1.21811 11.4692C1.07746 11.6099 0.998438 11.8007 0.998438 11.9996C0.998438 12.1985 1.07746 12.3892 1.21811 12.5299C1.35876 12.6706 1.54953 12.7496 1.74844 12.7496C1.94735 12.7496 2.13812 12.6706 2.27877 12.5299C2.41942 12.3892 2.49844 12.1985 2.49844 11.9996C2.49844 11.8007 2.41942 11.6099 2.27877 11.4692C2.13812 11.3286 1.94735 11.2496 1.74844 11.2496ZM4.27656 5.08394C4.04531 4.93082 3.73594 4.99332 3.58281 5.22145L1.92031 7.71519L0.851562 6.64644C0.657812 6.45269 0.339062 6.45269 0.145312 6.64644C-0.0484375 6.84019 -0.0484375 7.15894 0.145312 7.35269L1.64531 8.85269C1.75156 8.95894 1.89844 9.01207 2.04844 8.99644C2.19844 8.98082 2.33281 8.89957 2.41406 8.77769L4.41406 5.77769C4.56719 5.54644 4.50469 5.23707 4.27656 5.08394Z" fill="#DB7800"/></svg>
+                        </div>
+                    </div>
+                    <div id="kpi-posture-trigger" class="kpi-posture-trigger" title="Click to view posture details">
+                        <div class="kpi-posture-split">
+                            <div class="kpi-posture-col">
+                                <span class="kpi-posture-label">Always on</span>
+                                <span id="kpi-posture-always-on" class="kpi-posture-number kpi-posture-accent">&mdash;</span>
+                                <span id="kpi-posture-always-on-pct" class="kpi-posture-pct"></span>
+                            </div>
+                            <div class="kpi-posture-col">
+                                <span class="kpi-posture-label">Connect after boot</span>
+                                <span id="kpi-posture-connect-after-boot" class="kpi-posture-number kpi-posture-accent">&mdash;</span>
+                                <span id="kpi-posture-connect-after-boot-pct" class="kpi-posture-pct"></span>
+                            </div>
+                            <div class="kpi-posture-col">
+                                <span class="kpi-posture-label">Device Posture</span>
+                                <span id="kpi-posture-validated-total" class="kpi-posture-number kpi-posture-accent">&mdash;</span>
+                                <span id="kpi-posture-validated-total-pct" class="kpi-posture-pct"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Audit Activity — full width row ─────────────────────────── -->
+            <div class="chart-card dau-chart-card grid-full">
+                <div class="dau-chart-card-header-row">
+                    <div class="header-title-group">
+                        <h3 class="audit-activity-heading widget-title" id="header-audit-chart">Audit activity</h3>
+                        <select id="activity-mode-select" aria-label="Audit Activity view">
+                            <option value="connect" selected>Session creation by region</option>
+                            <option value="sessions">Session Operations</option>
+                            <option value="policy">Policy Operations</option>
+                            <option value="region_health">Regions health</option>
+                            <option value="posture_audit">Posture Audits</option>
+                        </select>
+                    </div>
+                    <div id="activity-range-pills" class="activity-range-pills-segmented" role="group" aria-label="Chart day range">
+                        <button type="button" class="activity-range-pill is-active" data-days="7">7 Days</button>
+                        <button type="button" class="activity-range-pill" data-days="14">14 Days</button>
+                        <button type="button" class="activity-range-pill" data-days="30">30 Days</button>
+                    </div>
+                </div>
+                <div class="audit-chart-body">
+                <div class="audit-chart-inner">
+                    <div id="audit-chart-loading" class="audit-widget-loading is-active" aria-busy="true" aria-label="Loading Audit Activity chart">
+                        <div class="loading-spinner" aria-hidden="true"></div>
+                        <div class="loading-spinner-text">Loading 7-day data&hellip;</div>
+                    </div>
+                    <!-- Shown when user requests 14/30d before background fetch finishes -->
+                    <div id="audit-range-loading-overlay" class="chart-loading-overlay" aria-live="polite" aria-label="Loading extended audit data">
+                        <div class="clo-spinner" aria-hidden="true"></div>
+                        <span class="clo-label">Loading 30-day history&hellip;</span>
+                    </div>
+                    <canvas id="auditChart"></canvas>
+                </div>
+                <div id="dau-chart-legend" class="dau-html-legend dau-html-legend--side" role="toolbar" aria-label="Series — toggle visibility"></div>
+                </div><!-- /.audit-chart-body -->
+            </div>
+
+            <!-- ── Left column: Connectivity Map only ─────────────────────── -->
+            <div class="col-left">
+
+                <!-- Connectivity Map -->
+                <div class="map-card">
+                    <div class="section-header widget-title" id="header-map">Connectivity map</div>
+                    <div class="map-overlay-ctrl">
+                        <div class="map-overlay-pill">
+                            <button type="button" class="map-mode-btn active" data-mode="both">All Sessions</button>
+                            <button type="button" class="map-mode-btn" data-mode="servers">Regions</button>
+                            <button type="button" class="map-mode-btn" data-mode="users">Users</button>
+                        </div>
+                    </div>
+                    <div id="map"></div>
+                    <div class="map-controls">
+                        <button type="button" class="map-btn" id="map-recenter-btn" title="Reset view">
+                            <svg width="14" height="14" viewBox="49 269 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M61.1709 275.125H62.125V276.875H61.1709C60.9879 277.948 60.4762 278.937 59.7067 279.707C58.9372 280.476 57.9478 280.988 56.875 281.171V282.125H55.125V281.171C54.0522 280.988 53.0628 280.476 52.2933 279.707C51.5238 278.937 51.0121 277.948 50.8291 276.875H49.875V275.125H50.8291C51.0121 274.052 51.5238 273.063 52.2933 272.293C53.0628 271.524 54.0522 271.012 55.125 270.829V269.875H56.875V270.829C57.9478 271.012 58.9372 271.524 59.7067 272.293C60.4762 273.063 60.9879 274.052 61.1709 275.125ZM53.5694 279.638C54.2888 280.118 55.1347 280.375 56 280.375C57.1599 280.374 58.2719 279.912 59.0922 279.092C59.9123 278.272 60.3737 277.16 60.375 276C60.375 275.135 60.1185 274.289 59.6376 273.569C59.1569 272.85 58.4736 272.289 57.6742 271.958C56.8748 271.627 55.9951 271.54 55.1465 271.709C54.2978 271.878 53.5183 272.295 52.9064 272.906C52.2945 273.518 51.8779 274.298 51.7091 275.146C51.5403 275.995 51.6269 276.875 51.958 277.674C52.2892 278.474 52.8499 279.157 53.5694 279.638ZM54.0555 278.91C54.6311 279.295 55.3078 279.5 56 279.5C56.9279 279.499 57.8175 279.13 58.4737 278.474C59.1299 277.818 59.499 276.928 59.5 276C59.5 275.308 59.2947 274.631 58.9102 274.056C58.5256 273.48 57.9789 273.031 57.3394 272.766C56.6999 272.502 55.9961 272.432 55.3172 272.567C54.6382 272.702 54.0146 273.036 53.5251 273.525C53.0356 274.015 52.7023 274.638 52.5673 275.317C52.4322 275.996 52.5015 276.7 52.7664 277.339C53.0313 277.979 53.4799 278.526 54.0555 278.91ZM54.5416 273.817C54.9733 273.529 55.4808 273.375 56 273.375C56.696 273.376 57.3632 273.653 57.8553 274.145C58.3475 274.637 58.6242 275.304 58.625 276C58.625 276.519 58.4711 277.027 58.1826 277.458C57.8942 277.89 57.4842 278.227 57.0045 278.425C56.5249 278.624 55.9971 278.676 55.4879 278.575C54.9787 278.473 54.511 278.223 54.1438 277.856C53.7767 277.489 53.5267 277.021 53.4254 276.512C53.3242 276.003 53.3761 275.475 53.5748 274.995C53.7735 274.516 54.1099 274.106 54.5416 273.817Z" fill="#0F477A"/>
+                            </svg>
+                        </button>
+                        <button type="button" class="map-btn" id="map-zoom-in" title="Zoom in">
+                            <svg width="9" height="9" viewBox="52 304 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M56.5 307.5V304H55.5V307.5H52V308.5H55.5V312H56.5V308.5H60V307.5H56.5Z" fill="#0F477A"/>
+                            </svg>
+                        </button>
+                        <button type="button" class="map-btn" id="map-zoom-out" title="Zoom out">
+                            <svg width="9" height="2" viewBox="52 340 8 2" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M60 340.5H52V341.5H60V340.5Z" fill="#0F477A"/>
+                            </svg>
+                        </button>
+                        <button type="button" class="map-btn map-dim-btn" id="map-dim-2d" data-dim="2d" title="Flat map (2D)">2D</button>
+                        <button type="button" class="map-btn map-dim-btn active" id="map-dim-3d" data-dim="3d" title="Globe (3D)">3D</button>
+                    </div>
+                    <div id="map-geo-loading" role="status" aria-live="polite">
+                        <span class="map-geo-spinner" aria-hidden="true"></span>
+                        <span id="map-geo-loading-text">Processing sessions&hellip;</span>
+                    </div>
+                </div>
+
+            </div><!-- /.col-left -->
+
+            <!-- ── Right column: Insights + metrics widgets ───────────────── -->
+            <div class="col-right">
+
+                <!-- Insights -->
+                <div class="insights-card">
+                    <div class="section-header">
+                        <div class="insights-header-title-row">
+                            <span class="widget-title" id="header-insights">Insights</span>
+                            <button type="button" class="insights-logic-guide-btn" id="btn-insights-logic-guide" title="Insights &amp; Audit Logic Guide" aria-label="Open Insights and Audit Logic Guide">?</button>
+                        </div>
+                    </div>
+                    <ul id="insights-list">
+                        <li><span class="insight-dot blue"></span>
+                            <div><div class="insight-title">Loading&hellip;</div></div>
+                        </li>
+                    </ul>
+                    <div class="insights-scrollbar-track" id="insights-scrollbar-track" aria-hidden="true">
+                        <div class="insights-scrollbar-thumb" id="insights-scrollbar-thumb"></div>
+                    </div>
+                </div>
+
+            </div><!-- /.col-right -->
+
+            <!-- ── Below map+insights: 4 equal columns ── -->
+            <div class="below-map-grid grid-full">
+
+                <div class="card">
+                    <div class="card-label widget-title" id="header-versions">Connect versions</div>
+                    <div id="card-versions" class="metric-scroll">
+                        <div class="audit-widget-loading-static" id="audit-versions-loading" aria-busy="true" aria-label="Loading client versions">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <div class="loading-spinner-text">Loading session data&hellip;</div>
+                            <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                            <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
+                        </div>
+                    </div>
+                    <div id="cv-latest-footer-container"></div>
+                </div>
+
+                <div class="chart-card" id="card-os-distribution-wrap">
+                    <div class="card-label widget-title" id="header-os" style="margin-bottom:6px;">OS distribution</div>
+                    <div class="audit-chart-inner os-accordion-wrap">
+                        <div id="os-chart-loading" class="audit-widget-loading is-active" aria-busy="true" aria-label="Loading OS distribution">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <div class="loading-spinner-text">Loading session data&hellip;</div>
+                        </div>
+                        <div id="card-os-accordion" class="os-accordion metric-scroll" role="region" aria-label="Operating system breakdown"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-label widget-title" id="header-policy">Policy names by hits</div>
+                    <div id="card-policy-rules" class="metric-scroll">
+                        <div class="audit-widget-loading-static" id="audit-policy-loading">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <div class="loading-spinner-text">Loading 30-day data&hellip;</div>
+                            <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                            <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-label widget-title" id="header-regions">Regions load</div>
+                    <div id="card-regions" class="metric-scroll">
+                        <div class="audit-widget-loading-static" id="audit-regions-loading" aria-busy="true" aria-label="Loading region load">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <div class="loading-spinner-text">Loading 30-day data&hellip;</div>
+                            <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                            <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Posture Violations widget -->
+                <div class="card" id="card-posture-violations-wrap">
+                    <div class="card-header-row">
+                        <div class="card-label widget-title" id="header-posture-violations">Device posture violations</div>
+                    </div>
+                    <div id="card-posture-violations" class="metric-scroll">
+                        <div class="audit-widget-loading-static" id="audit-posture-violations-loading" aria-busy="true" aria-label="Loading posture violations">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <div class="loading-spinner-text">Loading 30-day data&hellip;</div>
+                            <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                            <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Users widget -->
+                <div class="card" id="card-top-users-posture-wrap">
+                    <div class="card-label widget-title tuv-header-row">
+                        <span class="tuv-header-label">Users by</span>
+                        <select id="top-users-mode-select" aria-label="Top users metric">
+                            <option value="session_creation" selected>Session Creation</option>
+                            <option value="posture_violations">Device Posture Violations</option>
+                        </select>
+                    </div>
+                    <div id="card-top-users-posture" class="metric-scroll tuv-list">
+                        <div class="audit-widget-loading-static" id="audit-top-users-posture-loading" aria-busy="true" aria-label="Loading top users with posture violations">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <div class="loading-spinner-text">Loading 30-day data&hellip;</div>
+                            <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                            <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /.below-map-grid -->
+
+            <!-- ── Bottom row: Audit Operations + Overall Connected Time ─── -->
+            <div class="bottom-widget-row grid-full" style="display:none !important;">
+                <div class="card" style="display:flex;flex-direction:column;min-height:0;">
+                    <div class="card-label widget-title clickable-header cursor-pointer" id="header-audit-types" title="Click to debug Audit Operations (30-day paginated audits)">AUDIT OPERATIONS</div>
+                    <div id="card-audit-types" class="metric-scroll audit-types-list-host" style="flex:1;max-height:320px;" role="list" aria-live="polite">
+                        <div class="audit-widget-loading-static" id="audit-types-loading" aria-busy="true" aria-label="Loading audit operations">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <div class="loading-spinner-text">Loading 30-day data&hellip;</div>
+                            <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                            <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-label widget-title clickable-header cursor-pointer" id="header-conn-time" title="Click to debug Overall Connected Time data">OVERALL CONNECTED TIME</div>
+                    <div id="card-conn-time" class="metric-scroll">
+                        <div class="audit-widget-loading-static" id="audit-conn-time-loading">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <div class="loading-spinner-text">Loading 30-day data&hellip;</div>
+                            <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                            <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+    </div>
+
+    <!-- Active Sessions Drawer ──────────────────────────────────────────── -->
+    <div id="sessions-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="sessions-drawer-title">
+        <div class="sessions-drawer" id="sessions-drawer">
+            <div class="sessions-drawer-header">
+                <div class="sessions-drawer-title-row">
+                    <svg class="sdw-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" stroke="#7E90AB" stroke-width="1.2"/><line x1="6" y1="1" x2="6" y2="15" stroke="#7E90AB" stroke-width="1.2"/></svg>
+                    <span class="sessions-drawer-title" id="sessions-drawer-title">Active Sessions</span>
+                </div>
+                <div class="sdw-header-actions">
+                    <button type="button" class="sdw-export-btn" id="sessions-export-btn" title="Export to CSV">&#8595; CSV</button>
+                    <button type="button" class="sessions-drawer-close" id="sessions-drawer-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="sdw-stats-bar" id="sessions-drawer-stats"></div>
+            <div class="drawer-search-wrapper sdw-search-wrapper">
+                <svg class="sdw-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="#C6C6C6" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <input type="text" id="sessions-drawer-search" class="drawer-search" placeholder="Search for user or country" autocomplete="off">
+            </div>
+            <div class="ses-list-header ses-list-header--sortable sdw-table-header" style="grid-template-columns:1.3fr 1.7fr 1.1fr 1fr">
+                <span class="sortable-header" data-sort="user">User <span class="sort-indicator"></span></span>
+                <span class="sortable-header" data-sort="asset">Asset <span class="sort-indicator"></span></span>
+                <span class="sortable-header" data-sort="country">Location <span class="sort-indicator"></span></span>
+                <span class="sortable-header" data-sort="lastAuth">Last Auth <span class="sort-indicator"></span></span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="sessions-drawer-list"></div>
+            <div class="sdw-pagination" id="sessions-drawer-pagination">
+                <div class="sdw-pag-nav">
+                    <button type="button" class="sdw-pag-btn" id="sdp-first" title="First page">«</button>
+                    <button type="button" class="sdw-pag-btn" id="sdp-prev" title="Previous page">‹</button>
+                    <span class="sdw-pag-label" id="sdp-page-label">1 of 1</span>
+                    <button type="button" class="sdw-pag-btn" id="sdp-next" title="Next page">›</button>
+                    <button type="button" class="sdw-pag-btn" id="sdp-last" title="Last page">»</button>
+                </div>
+                <span class="sdw-pag-total" id="sdp-total-count">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Region Health Drawer ────────────────────────────────────────────── -->
+    <div id="region-health-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="rh-drawer-title">
+        <div class="sessions-drawer rh-drawer-wide" id="region-health-drawer">
+            <div class="sessions-drawer-header">
+                <div class="rh-title-row">
+                    <svg class="rh-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <rect x="0.7" y="0.7" width="14.6" height="14.6" rx="1.8" stroke="currentColor" stroke-width="1.3"/>
+                        <line x1="5.5" y1="1.3" x2="5.5" y2="14.7" stroke="currentColor" stroke-width="1.3"/>
+                        <path d="M9 6l2.2 2L9 10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span class="sessions-drawer-title" id="rh-drawer-title">Regions Health</span>
+                </div>
+                <button type="button" class="sessions-drawer-close" id="rh-drawer-close" aria-label="Close">&times;</button>
+            </div>
+
+            <!-- Figma summary bar: "N regions | N health events" -->
+            <div class="rh-summary-bar" id="rh-summary-bar">
+                <span class="rh-sum-chunk">
+                    <strong id="rh-regions-count">—</strong><span class="rh-sum-label"> regions</span>
+                </span>
+                <span class="rh-sum-sep" aria-hidden="true"></span>
+                <span class="rh-sum-chunk">
+                    <strong id="rh-health-events-count">—</strong><span class="rh-sum-label"> health events</span>
+                </span>
+            </div>
+
+            <!-- Legacy stat boxes — used by region info drill-down only -->
+            <div class="sessions-drawer-stats" id="rh-drawer-stats" style="display:none;grid-template-columns:repeat(2,1fr)"></div>
+            <div class="drawer-distributions" id="rh-drawer-distributions"></div>
+
+            <!-- Scrollable table area -->
+            <div class="sessions-drawer-list-wrap rh-table-scroll" id="rh-drawer-list"></div>
+
+            <!-- Pagination row -->
+            <div class="rh-pagination" id="rh-pagination" style="display:none">
+                <div class="rh-pg-nav">
+                    <button class="rh-pg-btn" id="rh-pg-first" aria-label="First page">&#xAB;</button>
+                    <button class="rh-pg-btn" id="rh-pg-prev"  aria-label="Previous page">&#x2039;</button>
+                    <span class="rh-pg-label" id="rh-pg-label">1 of 1</span>
+                    <button class="rh-pg-btn" id="rh-pg-next"  aria-label="Next page">&#x203A;</button>
+                    <button class="rh-pg-btn" id="rh-pg-last"  aria-label="Last page">&#xBB;</button>
+                </div>
+                <span class="rh-pg-total" id="rh-pg-total">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Combo Drawer (Users + Regions tabs) ─────────────────────────── -->
+    <div id="map-combo-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="map-combo-title">
+        <div class="sessions-drawer map-combo-drawer" id="map-combo-drawer">
+            <div class="sessions-drawer-header">
+                <div class="sessions-drawer-title-row">
+                    <svg class="sdw-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.3" stroke="#7E90AB" stroke-width="1.3"/><line x1="1.7" y1="8" x2="14.3" y2="8" stroke="#7E90AB" stroke-width="1.3"/><path d="M8 1.7a9.4 9.4 0 0 1 2.5 6.3A9.4 9.4 0 0 1 8 14.3 9.4 9.4 0 0 1 5.5 8 9.4 9.4 0 0 1 8 1.7z" stroke="#7E90AB" stroke-width="1.3"/></svg>
+                    <span class="sessions-drawer-title" id="map-combo-title">Map selection</span>
+                </div>
+                <button type="button" class="sessions-drawer-close" id="map-combo-close" aria-label="Close">&times;</button>
+            </div>
+            <!-- Tab bar -->
+            <div class="mcd-tab-bar">
+                <button type="button" class="mcd-tab mcd-tab--active" id="mcd-tab-users">
+                    Users <span class="mcd-tab-badge" id="mcd-tab-users-badge"></span>
+                </button>
+                <button type="button" class="mcd-tab" id="mcd-tab-regions">
+                    Regions <span class="mcd-tab-badge" id="mcd-tab-regions-badge"></span>
+                </button>
+            </div>
+            <!-- Users panel -->
+            <div class="mcd-panel" id="mcd-users-panel">
+                <div class="sdw-stats-bar" id="mcd-stats-bar"></div>
+                <div class="drawer-search-wrapper sdw-search-wrapper">
+                    <svg class="sdw-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="#C6C6C6" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.4" stroke-linecap="round"/></svg>
+                    <input type="text" id="mcd-search" class="drawer-search" placeholder="Search for user or country" autocomplete="off">
+                </div>
+                <div class="ses-list-header sdw-table-header" style="grid-template-columns:1.3fr 1.7fr 1.1fr 1fr">
+                    <span>User</span>
+                    <span>Asset</span>
+                    <span>Location</span>
+                    <span>Last auth</span>
+                </div>
+                <div class="sessions-drawer-list-wrap" id="mcd-sess-list"></div>
+                <div class="sdw-pagination" id="mcd-pagination" style="display:none">
+                    <div class="sdw-pag-nav">
+                        <button type="button" class="sdw-pag-btn" id="mcd-pg-first" title="First page">«</button>
+                        <button type="button" class="sdw-pag-btn" id="mcd-pg-prev" title="Previous page">‹</button>
+                        <span class="sdw-pag-label" id="mcd-pg-label">1 of 1</span>
+                        <button type="button" class="sdw-pag-btn" id="mcd-pg-next" title="Next page">›</button>
+                        <button type="button" class="sdw-pag-btn" id="mcd-pg-last" title="Last page">»</button>
+                    </div>
+                    <span class="sdw-pag-total" id="mcd-pg-total"></span>
+                </div>
+            </div>
+            <!-- Regions panel -->
+            <div class="mcd-panel" id="mcd-regions-panel" style="display:none">
+                <div class="rh-summary-bar" id="mcd-rh-summary">
+                    <span class="rh-sum-chunk"><strong id="mcd-rh-regions-count">—</strong><span class="rh-sum-label"> regions</span></span>
+                    <span class="rh-sum-sep" aria-hidden="true"></span>
+                    <span class="rh-sum-chunk"><strong id="mcd-rh-events-count">—</strong><span class="rh-sum-label"> health events</span></span>
+                </div>
+                <div class="sessions-drawer-list-wrap rh-table-scroll" id="mcd-rh-list"></div>
+                <div class="rh-pagination" id="mcd-rh-pagination" style="display:none">
+                    <div class="rh-pg-nav">
+                        <button class="rh-pg-btn" id="mcd-rh-pg-first" aria-label="First page">&#xAB;</button>
+                        <button class="rh-pg-btn" id="mcd-rh-pg-prev"  aria-label="Previous page">&#x2039;</button>
+                        <span class="rh-pg-label" id="mcd-rh-pg-label">1 of 1</span>
+                        <button class="rh-pg-btn" id="mcd-rh-pg-next"  aria-label="Next page">&#x203A;</button>
+                        <button class="rh-pg-btn" id="mcd-rh-pg-last"  aria-label="Last page">&#xBB;</button>
+                    </div>
+                    <span class="rh-pg-total" id="mcd-rh-pg-total"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Posture Drawer ───────────────────────────────────────────────────── -->
+    <div id="posture-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="posture-drawer-title">
+        <div class="sessions-drawer posture-drawer-v2" id="posture-drawer">
+            <div class="sessions-drawer-header posture-drawer-header">
+                <div class="posture-drawer-title-group">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M1 1h4v4H1V1zm0 5h4v4H1V6zm0 5h4v4H1v-4zm5-10h9v2H6V1zm0 5h9v2H6V6zm0 5h9v2H6v-2z" fill="#4A6081"/>
+                    </svg>
+                    <span class="sessions-drawer-title" id="posture-drawer-title">Active Sessions Posture</span>
+                </div>
+                <button type="button" class="sessions-drawer-close" id="posture-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <!-- Inline stats bar -->
+            <div class="posture-drawer-statsbar" id="posture-drawer-stats"></div>
+            <!-- Search -->
+            <div class="posture-drawer-search-wrap">
+                <input type="text" id="posture-drawer-search" class="posture-drawer-search" placeholder="Search for user" autocomplete="off" aria-label="Search for user">
+                <svg class="posture-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="6.5" cy="6.5" r="4.5" stroke="#C6C6C6" stroke-width="1.5"/>
+                    <path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <!-- Column headers -->
+            <div class="posture-drawer-thead">
+                <span class="posture-col-user posture-col-sortable" id="posture-sort-user" data-sort="user" aria-sort="ascending">
+                    User
+                    <svg class="posture-sort-arrow posture-sort-arrow--asc" width="10" height="10" viewBox="0 0 10 12" fill="none" aria-hidden="true">
+                        <path d="M5 11V1M1 5l4-4 4 4" stroke="#4A6081" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <span class="posture-col-os">OS</span>
+                <span class="posture-col-flag">Always on</span>
+                <span class="posture-col-flag">Connect after boot</span>
+                <span class="posture-col-flag">Device posture</span>
+            </div>
+            <!-- Scrollable table body -->
+            <div class="sessions-drawer-list-wrap posture-drawer-tbody" id="posture-drawer-list"></div>
+            <!-- Pagination footer -->
+            <div class="posture-drawer-pagination" id="posture-drawer-pagination">
+                <div class="posture-pag-nav">
+                    <button class="posture-pag-btn" id="posture-pag-first" title="First page" aria-label="First page">&#171;</button>
+                    <button class="posture-pag-btn" id="posture-pag-prev" title="Previous page" aria-label="Previous page">&#8249;</button>
+                    <span class="posture-pag-label" id="posture-pag-label">1 of 1</span>
+                    <button class="posture-pag-btn" id="posture-pag-next" title="Next page" aria-label="Next page">&#8250;</button>
+                    <button class="posture-pag-btn" id="posture-pag-last" title="Last page" aria-label="Last page">&#187;</button>
+                </div>
+                <span class="posture-pag-total" id="posture-pag-total">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Insight Drawer ──────────────────────────────────────────────────── -->
+    <div id="insight-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="insight-drawer-title">
+        <div class="sessions-drawer" id="insight-drawer">
+            <div class="sessions-drawer-header">
+                <span class="sessions-drawer-title" id="insight-drawer-title">Insights</span>
+                <button type="button" class="sessions-drawer-close" id="insight-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div id="insight-drawer-logic" class="insight-drawer-logic" style="display:none"></div>
+            <div id="insight-drawer-recommended" class="insight-drawer-recommended" style="display:none"></div>
+            <div class="drawer-search-wrapper">
+                <input type="text" id="insight-drawer-search" class="drawer-search" placeholder="Search for user or asset" autocomplete="off">
+            </div>
+            <div class="sessions-drawer-list-wrap" id="insight-drawer-table"></div>
+        </div>
+    </div>
+
+    <!-- Connect Versions Drawer ──────────────────────────────────────────── -->
+    <div id="connect-versions-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="cv-drawer-title">
+        <div class="sessions-drawer cv-drawer-wide" id="connect-versions-drawer">
+            <div class="sessions-drawer-header">
+                <div class="sessions-drawer-title-row">
+                    <svg class="sdw-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" stroke="#7E90AB" stroke-width="1.2"/><line x1="6" y1="1" x2="6" y2="15" stroke="#7E90AB" stroke-width="1.2"/></svg>
+                    <span class="sessions-drawer-title" id="cv-drawer-title">Sessions with Connect version —</span>
+                </div>
+                <button type="button" class="sessions-drawer-close" id="cv-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="sdw-stats-bar" id="cv-drawer-stats-bar"></div>
+            <div class="drawer-search-wrapper sdw-search-wrapper">
+                <svg class="sdw-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="#C6C6C6" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <input type="text" id="cv-drawer-search" class="drawer-search" placeholder="Search for user" autocomplete="off" aria-label="Search for user">
+            </div>
+            <div class="ses-list-header sdw-table-header cv-drawer-grid" id="cv-drawer-thead">
+                <span>User</span>
+                <span>Asset</span>
+                <span>OS</span>
+                <span>Location</span>
+                <span>Region</span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="cv-drawer-list"></div>
+            <div class="sdw-pagination" id="cv-drawer-pagination">
+                <div class="sdw-pag-nav">
+                    <button type="button" class="sdw-pag-btn" id="cv-pag-first" title="First page" aria-label="First page">«</button>
+                    <button type="button" class="sdw-pag-btn" id="cv-pag-prev"  title="Previous page" aria-label="Previous page">‹</button>
+                    <span class="sdw-pag-label" id="cv-pag-label">1 of 1</span>
+                    <button type="button" class="sdw-pag-btn" id="cv-pag-next"  title="Next page" aria-label="Next page">›</button>
+                    <button type="button" class="sdw-pag-btn" id="cv-pag-last"  title="Last page" aria-label="Last page">»</button>
+                </div>
+                <span class="sdw-pag-total" id="cv-pag-total">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- OS Distribution Drawer ──────────────────────────────────────────── -->
+    <div id="os-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="os-drawer-title">
+        <div class="sessions-drawer" id="os-drawer">
+            <div class="sessions-drawer-header">
+                <div class="sessions-drawer-title-row">
+                    <svg class="sdw-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" stroke="#7E90AB" stroke-width="1.2"/><line x1="6" y1="1" x2="6" y2="15" stroke="#7E90AB" stroke-width="1.2"/></svg>
+                    <span class="sessions-drawer-title" id="os-drawer-title">Sessions with OS Windows</span>
+                </div>
+                <button type="button" class="sessions-drawer-close" id="os-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="sdw-stats-bar" id="os-drawer-stats"></div>
+            <div class="drawer-search-wrapper sdw-search-wrapper">
+                <svg class="sdw-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="#C6C6C6" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <input type="text" id="os-drawer-search" class="drawer-search" placeholder="Search for user" autocomplete="off">
+            </div>
+            <div class="ses-list-header sdw-table-header" style="grid-template-columns:1.3fr 1.3fr 1fr" id="os-table-header">
+                <span class="sortable-header">User</span>
+                <span class="sortable-header os-sort-btn" id="os-sort-specific-os" title="Sort by Specific OS">
+                    Specific OS
+                    <svg class="os-sort-arrow" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 8L5 2" stroke="#7E90AB" stroke-width="1.3" stroke-linecap="round"/><path d="M2.5 5L5 8L7.5 5" stroke="#7E90AB" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+                <span class="sortable-header">Connect Version</span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="os-drawer-list"></div>
+            <div class="sdw-pagination" id="os-drawer-pagination">
+                <div class="sdw-pag-nav">
+                    <button type="button" class="sdw-pag-btn" id="os-pg-first" title="First page">«</button>
+                    <button type="button" class="sdw-pag-btn" id="os-pg-prev" title="Previous page">‹</button>
+                    <span class="sdw-pag-label" id="os-pg-label">1 of 1</span>
+                    <button type="button" class="sdw-pag-btn" id="os-pg-next" title="Next page">›</button>
+                    <button type="button" class="sdw-pag-btn" id="os-pg-last" title="Last page">»</button>
+                </div>
+                <span class="sdw-pag-total" id="os-pg-total">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Policy Operations Drawer ────────────────────────────────────────── -->
+    <div id="policy-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="policy-drawer-title">
+        <div class="sessions-drawer policy-drawer-wide" id="policy-drawer">
+            <div class="sessions-drawer-header">
+                <div class="sessions-drawer-title-row">
+                    <svg class="sdw-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" stroke="#7E90AB" stroke-width="1.2"/><line x1="6" y1="1" x2="6" y2="15" stroke="#7E90AB" stroke-width="1.2"/></svg>
+                    <span class="sessions-drawer-title" id="policy-drawer-title">Policy Operations</span>
+                </div>
+                <div class="sdw-header-actions">
+                    <button type="button" class="sdw-export-btn" id="policy-export-btn" title="Export to CSV">&#8595; CSV</button>
+                    <button type="button" class="sessions-drawer-close" id="policy-drawer-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="sdw-stats-bar" id="policy-drawer-stats"></div>
+            <div class="drawer-search-wrapper sdw-search-wrapper">
+                <svg class="sdw-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="#C6C6C6" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <input type="text" id="policy-drawer-search" class="drawer-search" placeholder="Search by admin or policy name" autocomplete="off" aria-label="Search">
+            </div>
+            <div class="ses-list-header sdw-table-header ses-list-header--po" id="policy-drawer-thead">
+                <span>Timestamp</span>
+                <span>Admin</span>
+                <span>Action</span>
+                <span>Policy Name</span>
+                <span>Change Summary</span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="policy-drawer-list"></div>
+            <div class="sdw-pagination" id="policy-drawer-pagination">
+                <div class="sdw-pag-nav">
+                    <button type="button" class="sdw-pag-btn" id="po-pag-first" title="First page">«</button>
+                    <button type="button" class="sdw-pag-btn" id="po-pag-prev" title="Previous page">‹</button>
+                    <span class="sdw-pag-label" id="po-pag-label">1 of 1</span>
+                    <button type="button" class="sdw-pag-btn" id="po-pag-next" title="Next page">›</button>
+                    <button type="button" class="sdw-pag-btn" id="po-pag-last" title="Last page">»</button>
+                </div>
+                <span class="sdw-pag-total" id="po-pag-total">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Posture Audit Drawer ─────────────────────────────────────────────── -->
+    <div id="posture-audit-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="posture-audit-drawer-title">
+        <div class="sessions-drawer posture-audit-drawer-wide" id="posture-audit-drawer">
+            <div class="sessions-drawer-header">
+                <div class="sessions-drawer-title-row">
+                    <svg class="sdw-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" stroke="#7E90AB" stroke-width="1.2"/><line x1="6" y1="1" x2="6" y2="15" stroke="#7E90AB" stroke-width="1.2"/></svg>
+                    <span class="sessions-drawer-title" id="posture-audit-drawer-title">Posture Audits</span>
+                </div>
+                <div class="sdw-header-actions">
+                    <button type="button" class="sdw-export-btn" id="posture-audit-export-btn" title="Export to CSV">&#8595; CSV</button>
+                    <button type="button" class="sessions-drawer-close" id="posture-audit-drawer-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="sdw-stats-bar" id="posture-audit-drawer-stats"></div>
+            <div class="drawer-search-wrapper sdw-search-wrapper">
+                <svg class="sdw-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="#C6C6C6" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <input type="text" id="posture-audit-drawer-search" class="drawer-search" placeholder="Search by user or device" autocomplete="off" aria-label="Search">
+            </div>
+            <div class="ses-list-header sdw-table-header ses-list-header--pa" id="posture-audit-thead">
+                <span>Timestamp</span>
+                <span>User</span>
+                <span>Device</span>
+                <span>Event Type</span>
+                <span>Check Types</span>
+                <span>Profile</span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="posture-audit-drawer-list"></div>
+            <div class="sdw-pagination" id="posture-audit-drawer-pagination">
+                <div class="sdw-pag-nav">
+                    <button type="button" class="sdw-pag-btn" id="pa-pag-first" title="First page">«</button>
+                    <button type="button" class="sdw-pag-btn" id="pa-pag-prev" title="Previous page">‹</button>
+                    <span class="sdw-pag-label" id="pa-pag-label">1 of 1</span>
+                    <button type="button" class="sdw-pag-btn" id="pa-pag-next" title="Next page">›</button>
+                    <button type="button" class="sdw-pag-btn" id="pa-pag-last" title="Last page">»</button>
+                </div>
+                <span class="sdw-pag-total" id="pa-pag-total">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Device Posture Violation Drawer ─────────────────────────────────── -->
+    <div id="pv-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="pv-drawer-title">
+        <div class="sessions-drawer pv-drawer-wide" id="pv-drawer">
+            <div class="sessions-drawer-header">
+                <div class="sessions-drawer-title-row">
+                    <svg class="sdw-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5L2 4v4c0 3.3 2.5 5.6 6 6.5 3.5-.9 6-3.2 6-6.5V4L8 1.5z" stroke="#7E90AB" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                    <span class="sessions-drawer-title" id="pv-drawer-title">Device Posture Violations</span>
+                </div>
+                <div class="sdw-header-actions">
+                    <button type="button" class="sdw-export-btn" id="pv-export-btn" title="Export to CSV">&#8595; CSV</button>
+                    <button type="button" class="sessions-drawer-close" id="pv-drawer-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="sdw-stats-bar" id="pv-drawer-stats"></div>
+            <div class="drawer-search-wrapper sdw-search-wrapper">
+                <svg class="sdw-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="#C6C6C6" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <input type="text" id="pv-drawer-search" class="drawer-search" placeholder="Search by user or device" autocomplete="off" aria-label="Search">
+            </div>
+            <div class="ses-list-header sdw-table-header ses-list-header--pv" id="pv-table-header">
+                <span>User</span>
+                <span>Device</span>
+                <span>Failing Checks</span>
+                <span>Count</span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="pv-drawer-list"></div>
+            <div class="sdw-pagination" id="pv-drawer-pagination">
+                <div class="sdw-pag-nav">
+                    <button type="button" class="sdw-pag-btn" id="pv-pg-first" title="First page">&#171;</button>
+                    <button type="button" class="sdw-pag-btn" id="pv-pg-prev" title="Previous page">&#8249;</button>
+                    <span class="sdw-pag-label" id="pv-pg-label">1 of 1</span>
+                    <button type="button" class="sdw-pag-btn" id="pv-pg-next" title="Next page">&#8250;</button>
+                    <button type="button" class="sdw-pag-btn" id="pv-pg-last" title="Last page">&#187;</button>
+                </div>
+                <span class="sdw-pag-total" id="pv-pg-total">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Creation — Unique Users Drawer ──────────────────────────── -->
+    <div id="sc-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="sc-drawer-title">
+        <div class="sessions-drawer sc-drawer-wide" id="sc-drawer">
+            <div class="sessions-drawer-header">
+                <div class="sessions-drawer-title-row">
+                    <svg class="sdw-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" stroke="#7E90AB" stroke-width="1.2"/><line x1="6" y1="1" x2="6" y2="15" stroke="#7E90AB" stroke-width="1.2"/></svg>
+                    <span class="sessions-drawer-title" id="sc-drawer-title">Session Creation by Region</span>
+                </div>
+                <div class="sdw-header-actions">
+                    <button type="button" class="sdw-export-btn" id="sc-export-btn" title="Export to CSV">&#8595; CSV</button>
+                    <button type="button" class="sessions-drawer-close" id="sc-drawer-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="sdw-stats-bar" id="sc-drawer-stats"></div>
+            <div class="drawer-search-wrapper sdw-search-wrapper">
+                <svg class="sdw-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="#C6C6C6" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <input type="text" id="sc-drawer-search" class="drawer-search" placeholder="Search by user, device or region" autocomplete="off">
+            </div>
+            <div class="ses-list-header sdw-table-header ses-list-header--sc" id="sc-table-header">
+                <span class="sortable-header">User</span>
+                <span class="sortable-header">Device</span>
+                <span class="sortable-header">Country</span>
+                <span class="sortable-header">Region</span>
+                <span class="sortable-header">Policy Applied</span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="sc-drawer-list"></div>
+            <div class="sdw-pagination" id="sc-drawer-pagination">
+                <div class="sdw-pag-nav">
+                    <button type="button" class="sdw-pag-btn" id="sc-pg-first" title="First page">«</button>
+                    <button type="button" class="sdw-pag-btn" id="sc-pg-prev" title="Previous page">‹</button>
+                    <span class="sdw-pag-label" id="sc-pg-label">1 of 1</span>
+                    <button type="button" class="sdw-pag-btn" id="sc-pg-next" title="Next page">›</button>
+                    <button type="button" class="sdw-pag-btn" id="sc-pg-last" title="Last page">»</button>
+                </div>
+                <span class="sdw-pag-total" id="sc-pg-total">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Activity — Used Policies Drawer ───────────────────────────── -->
+    <div id="audit-policies-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="ap-drawer-title">
+        <div class="sessions-drawer ap-drawer-wide" id="audit-policies-drawer">
+            <div class="sessions-drawer-header">
+                <div class="sessions-drawer-title-row">
+                    <svg class="sdw-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" stroke="#7E90AB" stroke-width="1.2"/><line x1="6" y1="1" x2="6" y2="15" stroke="#7E90AB" stroke-width="1.2"/></svg>
+                    <span class="sessions-drawer-title" id="ap-drawer-title">Session Creation – Used Policies</span>
+                </div>
+                <button type="button" class="sessions-drawer-close" id="ap-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="sdw-stats-bar ap-stats-bar" id="ap-drawer-stats"></div>
+            <div class="drawer-search-wrapper sdw-search-wrapper">
+                <svg class="sdw-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="#C6C6C6" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <input type="text" id="ap-drawer-search" class="drawer-search" placeholder="Search for policy" autocomplete="off" aria-label="Search for policy">
+            </div>
+            <div class="ses-list-header sdw-table-header ap-table-header">
+                <span class="sortable-header ap-sort-btn" id="ap-sort-hits" data-sort="hits" aria-sort="descending">
+                    Policy Name
+                </span>
+                <span class="sortable-header ap-sort-hits-col" id="ap-sort-hits-col">
+                    Hits
+                    <svg class="ap-sort-arrow ap-sort-arrow--desc" width="10" height="12" viewBox="0 0 10 12" fill="none" aria-hidden="true"><path d="M5 1v10M1 7l4 4 4-4" stroke="#7E90AB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="ap-drawer-list"></div>
+            <div class="sdw-pagination" id="ap-drawer-pagination">
+                <div class="sdw-pag-nav">
+                    <button type="button" class="sdw-pag-btn" id="ap-pg-first" title="First page" aria-label="First page">«</button>
+                    <button type="button" class="sdw-pag-btn" id="ap-pg-prev" title="Previous page" aria-label="Previous page">‹</button>
+                    <span class="sdw-pag-label" id="ap-pg-label">1 of 1</span>
+                    <button type="button" class="sdw-pag-btn" id="ap-pg-next" title="Next page" aria-label="Next page">›</button>
+                    <button type="button" class="sdw-pag-btn" id="ap-pg-last" title="Last page" aria-label="Last page">»</button>
+                </div>
+                <span class="sdw-pag-total" id="ap-pg-total">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Operations Audit Drawer ─────────────────────────────────── -->
+    <div id="session-audit-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="session-audit-drawer-title">
+        <div class="sessions-drawer sa-drawer-wide" id="session-audit-drawer">
+            <div class="sessions-drawer-header">
+                <div class="sessions-drawer-title-row">
+                    <svg class="sdw-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" stroke="#7E90AB" stroke-width="1.2"/><line x1="6" y1="1" x2="6" y2="15" stroke="#7E90AB" stroke-width="1.2"/></svg>
+                    <span class="sessions-drawer-title" id="session-audit-drawer-title">Session Operations</span>
+                </div>
+                <div class="sdw-header-actions">
+                    <button type="button" class="sdw-export-btn" id="session-audit-export-btn" title="Export to CSV">&#8595; CSV</button>
+                    <button type="button" class="sessions-drawer-close" id="session-audit-drawer-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="sdw-stats-bar" id="session-audit-drawer-stats"></div>
+            <div class="drawer-search-wrapper sdw-search-wrapper">
+                <svg class="sdw-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="#C6C6C6" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <input type="text" id="session-audit-drawer-search" class="drawer-search" placeholder="Search by user or device" autocomplete="off" aria-label="Search">
+            </div>
+            <div class="ses-list-header sdw-table-header ses-list-header--sa" id="session-audit-thead">
+                <span>Timestamp</span>
+                <span>User</span>
+                <span>Event Type</span>
+                <span>Device</span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="session-audit-drawer-list"></div>
+            <div class="sdw-pagination" id="session-audit-drawer-pagination">
+                <div class="sdw-pag-nav">
+                    <button type="button" class="sdw-pag-btn" id="sa-pag-first" title="First page">«</button>
+                    <button type="button" class="sdw-pag-btn" id="sa-pag-prev" title="Previous page">‹</button>
+                    <span class="sdw-pag-label" id="sa-pag-label">1 of 1</span>
+                    <button type="button" class="sdw-pag-btn" id="sa-pag-next" title="Next page">›</button>
+                    <button type="button" class="sdw-pag-btn" id="sa-pag-last" title="Last page">»</button>
+                </div>
+                <span class="sdw-pag-total" id="sa-pag-total">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Region Health Audit Drawer ──────────────────────────────────────── -->
+    <div id="region-audit-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="region-audit-drawer-title">
+        <div class="sessions-drawer" id="region-audit-drawer">
+            <div class="sessions-drawer-header">
+                <div class="sessions-drawer-title-row">
+                    <svg class="sdw-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" stroke="#7E90AB" stroke-width="1.2"/><line x1="6" y1="1" x2="6" y2="15" stroke="#7E90AB" stroke-width="1.2"/></svg>
+                    <span class="sessions-drawer-title" id="region-audit-drawer-title">Region Health Events</span>
+                </div>
+                <div class="sdw-header-actions">
+                    <button type="button" class="sdw-export-btn" id="region-audit-export-btn" title="Export to CSV">&#8595; CSV</button>
+                    <button type="button" class="sessions-drawer-close" id="region-audit-drawer-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="sdw-stats-bar" id="region-audit-drawer-stats"></div>
+            <div class="drawer-search-wrapper sdw-search-wrapper">
+                <svg class="sdw-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="#C6C6C6" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <input type="text" id="region-audit-drawer-search" class="drawer-search" placeholder="Search by region or server" autocomplete="off" aria-label="Search">
+            </div>
+            <div class="ses-list-header sdw-table-header ses-list-header--rh" id="region-audit-thead">
+                <span>Timestamp</span>
+                <span>Region Name</span>
+                <span>Event Type</span>
+                <span>Server Name</span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="region-audit-drawer-list"></div>
+            <div class="sdw-pagination" id="region-audit-drawer-pagination">
+                <div class="sdw-pag-nav">
+                    <button type="button" class="sdw-pag-btn" id="rha-pag-first" title="First page">«</button>
+                    <button type="button" class="sdw-pag-btn" id="rha-pag-prev" title="Previous page">‹</button>
+                    <span class="sdw-pag-label" id="rha-pag-label">1 of 1</span>
+                    <button type="button" class="sdw-pag-btn" id="rha-pag-next" title="Next page">›</button>
+                    <button type="button" class="sdw-pag-btn" id="rha-pag-last" title="Last page">»</button>
+                </div>
+                <span class="sdw-pag-total" id="rha-pag-total">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Policy Coverage Drawer ──────────────────────────────────────────── -->
+    <div id="pn-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="pn-drawer-title">
+        <div class="sessions-drawer pn-drawer-wide" id="pn-drawer">
+            <div class="sessions-drawer-header">
+                <div class="sessions-drawer-title-row">
+                    <svg class="sdw-panel-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 2h12v12H2V2z" rx="1" stroke="#7E90AB" stroke-width="1.2" fill="none"/><path d="M5 5h6M5 8h6M5 11h4" stroke="#7E90AB" stroke-width="1.2" stroke-linecap="round"/></svg>
+                    <span class="sessions-drawer-title" id="pn-drawer-title">Policy Coverage</span>
+                </div>
+                <div class="sdw-header-actions">
+                    <button type="button" class="sdw-export-btn" id="pn-export-btn" title="Export to CSV">&#8595; CSV</button>
+                    <button type="button" class="sessions-drawer-close" id="pn-drawer-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="sdw-stats-bar" id="pn-drawer-stats"></div>
+            <div class="drawer-search-wrapper sdw-search-wrapper">
+                <svg class="sdw-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="#C6C6C6" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="#C6C6C6" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <input type="text" id="pn-drawer-search" class="drawer-search" placeholder="Search by user, region or device" autocomplete="off" aria-label="Search">
+            </div>
+            <div class="ses-list-header sdw-table-header ses-list-header--pn" id="pn-drawer-thead">
+                <span class="sortable-header">User</span>
+                <span class="sortable-header">Sessions</span>
+                <span class="sortable-header">Last Session</span>
+                <span class="sortable-header">Region</span>
+                <span class="sortable-header">Device</span>
+            </div>
+            <div class="sessions-drawer-list-wrap" id="pn-drawer-list"></div>
+            <div class="sdw-pagination" id="pn-drawer-pagination">
+                <div class="sdw-pag-nav">
+                    <button type="button" class="sdw-pag-btn" id="pn-pag-first" title="First page">«</button>
+                    <button type="button" class="sdw-pag-btn" id="pn-pag-prev" title="Previous page">‹</button>
+                    <span class="sdw-pag-label" id="pn-pag-label">1 of 1</span>
+                    <button type="button" class="sdw-pag-btn" id="pn-pag-next" title="Next page">›</button>
+                    <button type="button" class="sdw-pag-btn" id="pn-pag-last" title="Last page">»</button>
+                </div>
+                <span class="sdw-pag-total" id="pn-pag-total">Total count: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Universal Debug Modal (#detailsModal) -->
+    <div id="modal-backdrop" class="modal-backdrop">
+        <div class="modal" id="detailsModal">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-title">Debug</span>
+                <button class="modal-close" id="modal-close-btn">&times;</button>
+            </div>
+            <!-- Metadata strip: API endpoint · record count · oldest date -->
+            <div class="modal-meta" id="modal-meta" style="display:none;"></div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Formatted HTML table drill-down (users / policy / OS / versions) -->
+    <div id="formatted-table-modal-backdrop" class="modal-backdrop" aria-hidden="true">
+        <div class="modal modal--wide-json" id="formatted-table-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="formatted-table-modal-title">
+            <div class="modal-header">
+                <span class="modal-title" id="formatted-table-modal-title">Details</span>
+                <button type="button" class="modal-close" id="formatted-table-modal-close-btn" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="zn-formatted-table-scroll" id="formatted-table-modal-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Raw JSON inspector (audits / sessions arrays) -->
+    <div id="json-inspector-backdrop" class="modal-backdrop" aria-hidden="true">
+        <div class="modal modal--wide-json" id="json-inspector-dialog" role="dialog" aria-modal="true" aria-labelledby="json-inspector-title">
+            <div class="modal-header">
+                <span class="modal-title" id="json-inspector-title">Raw Data</span>
+                <button type="button" class="modal-close" id="json-inspector-close-btn" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body modal-body--json">
+                <pre class="json-inspector-pre"><code id="json-inspector-code"></code></pre>
+            </div>
+        </div>
+    </div>
+
+    <div id="chart-detail-popover" class="hidden" role="dialog" aria-label="Chart details">
+        <button type="button" id="chart-detail-popover-close" aria-label="Close">&times;</button>
+        <h4 id="chart-detail-popover-title" class="chart-detail-popover-title"></h4>
+        <div id="chart-detail-popover-body"></div>
+    </div>
+
+    <!-- Feedback tab -->
+    <button class="feedback-tab" id="feedback-tab-btn" aria-label="Give feedback">Feedback</button>
+
+    <!-- Feedback modal -->
+    <div id="feedback-modal-backdrop" class="modal-backdrop" aria-hidden="true">
+        <div class="modal modal--feedback" id="feedback-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
+            <div class="modal-header">
+                <span class="modal-title" id="feedback-modal-title">Share Your Feedback</span>
+                <button type="button" class="modal-close" id="feedback-modal-close-btn" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="feedback-intro">Let us know how we can improve your experience.</p>
+                <form id="feedback-form" novalidate>
+                    <div class="feedback-field">
+                        <label class="feedback-label" for="feedback-type">Type</label>
+                        <select class="feedback-select" id="feedback-type" name="type" required>
+                            <option value="" disabled selected>Please select</option>
+                            <option value="Bug Report">Bug Report</option>
+                            <option value="Feature Request">Feature Request</option>
+                            <option value="General Feedback">General Feedback</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="feedback-field">
+                        <label class="feedback-label" for="feedback-email">Your email <span class="feedback-optional">(optional)</span></label>
+                        <input class="feedback-input" type="email" id="feedback-email" name="email" placeholder="you@example.com" autocomplete="email">
+                    </div>
+                    <div class="feedback-field">
+                        <label class="feedback-label" for="feedback-message">Description</label>
+                        <textarea class="feedback-textarea" id="feedback-message" name="message" rows="5" placeholder="Please include a detailed description of your idea or issue." required></textarea>
+                    </div>
+                    <div id="feedback-form-status" class="feedback-status" aria-live="polite"></div>
+                </form>
+            </div>
+            <div class="feedback-actions">
+                <button type="submit" form="feedback-form" class="feedback-submit" id="feedback-submit-btn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./dashboard-logic.js"></script>
+</body>
+</html>

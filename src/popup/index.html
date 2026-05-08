@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zero Connect Extension</title>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <!-- Feedback / Report a Bug modal -->
+    <div id="feedback-modal-backdrop" class="modal-backdrop" aria-hidden="true">
+      <div class="modal modal--feedback" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
+        <div class="modal-header">
+          <span class="modal-title" id="feedback-modal-title">Share Your Feedback</span>
+          <button type="button" class="modal-close" id="feedback-modal-close-btn" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="feedback-intro">Let us know how we can improve your experience.</p>
+          <form id="feedback-form" novalidate>
+            <div class="feedback-field">
+              <label class="feedback-label" for="feedback-type">Type</label>
+              <select class="feedback-select" id="feedback-type" name="type" required>
+                <option value="" disabled>Please select</option>
+                <option value="Bug Report">Bug Report</option>
+                <option value="Feature Request">Feature Request</option>
+                <option value="General Feedback">General Feedback</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="feedback-field">
+              <label class="feedback-label" for="feedback-email">Your email <span class="feedback-optional">(optional)</span></label>
+              <input class="feedback-input" type="email" id="feedback-email" name="email" placeholder="you@example.com" autocomplete="email" />
+            </div>
+            <div class="feedback-field">
+              <label class="feedback-label" for="feedback-message">Description</label>
+              <textarea class="feedback-textarea" id="feedback-message" name="message" rows="5" placeholder="Please include a detailed description of your idea or issue." required></textarea>
+            </div>
+            <div id="feedback-form-status" class="feedback-status" aria-live="polite"></div>
+            <div class="feedback-actions">
+              <button type="submit" class="feedback-submit" id="feedback-submit-btn">Send</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

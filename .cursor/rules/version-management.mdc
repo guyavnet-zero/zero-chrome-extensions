@@ -1,0 +1,38 @@
+---
+description: Extension version management — auto-bump on each implementation session
+alwaysApply: true
+---
+
+# Extension Version Management
+
+The extension version lives in `package.json` → `version` and flows automatically into the
+built manifest via `manifest.config.ts` (`version: pkg.version`).
+
+## Rule for the AI agent
+
+**Whenever you implement a meaningful set of fixes or new features, bump the patch version
+as part of that same implementation.** The user does not need to ask for it explicitly.
+
+Steps:
+1. Edit `package.json` → increment the `version` patch digit (e.g. `1.0.1` → `1.0.2`).
+2. That's it — CRXJS picks up the new value at dev-server runtime without a restart.
+
+Alternatively, run:
+```bash
+npm run version:bump
+```
+which does the same thing via `npm version patch --no-git-tag-version`.
+
+## When to bump
+
+- After any session that fixes a user-reported bug
+- After any session that adds a new feature or visible UI change
+- **Not** for pure refactors or docs-only changes
+
+## Semver convention
+
+| Change type  | Bump       | Example         |
+|-------------|-----------|-----------------|
+| Bug fix / small feature | patch | `1.0.1 → 1.0.2` |
+| New major feature | minor | `1.0.2 → 1.1.0` |
+| Breaking change / major redesign | major | `1.1.0 → 2.0.0` |

@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Zero Connect Extension ${{ github.ref_name }}
+          body: |
+            ## Zero Connect Extension ${{ github.ref_name }}
+
+            Download the zip below, unzip it to the same location as before, then open
+            `chrome://extensions` and click **↺** next to Zero Connect to apply the update.
+          files: release/crx-zero-dashboard-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update version Gist
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          VER=${VERSION#v}
+          curl -s -o /dev/null -w "%{http_code}" -X PATCH \
+            https://api.github.com/gists/b53427ba229f9cf1e9e97cad6834ef2a \
+            -H "Authorization: token $GIST_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"files\":{\"version.json\":{\"content\":\"{\\\"version\\\":\\\"$VER\\\"}\"}}}" \
+          | grep -q "^200$" \
+            && echo "Gist updated → version.json now reports v$VER" \
+            || echo "::warning::Gist update failed — add a GIST_TOKEN secret with 'gist' scope"

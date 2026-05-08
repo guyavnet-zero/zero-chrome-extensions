@@ -64,6 +64,78 @@ function patchCrxjsDevAssets(): Plugin {
     // ensures the extension always receives the corrected file regardless of
     // when CRXJS last wrote it to dist/.
     configureServer(server) {
+      // crx-client-port.js — patch the ping-interval catch block so
+      // "Attempting to use a disconnected port object" is silenced.
+      // Two layers: (a) middleware for the SW-proxy HTTP path, and
+      // (b) file watcher to re-patch the disk copy if CRXJS regenerates it.
+      function patchCrxClientPort(src: string): string {
+        return src.replace(
+          /error\.message\.includes\("Extension context invalidated\."\)\) \{\n(\s+)location\.reload\(\);\n(\s+)\} else\n(\s+)throw error;/,
+          (_, sp1, sp2, sp3) =>
+            `error.message.includes("Extension context invalidated.")) {\n${sp1}location.reload();\n${sp2}} else if (error instanceof Error && !error.message.includes("disconnected port")) {\n${sp3}throw error;\n${sp2}}`,
+        )
+      }
+
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.includes('/vendor/crx-client-port.js')) return next()
+        const filePath = path.resolve(__dirname, 'dist', 'vendor', 'crx-client-port.js')
+        if (!fs.existsSync(filePath)) return next()
+        const src = fs.readFileSync(filePath, 'utf8')
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
+        res.end(patchCrxClientPort(src))
+      })
+
+      // Re-patch the disk file whenever CRXJS overwrites it.
+      const crxPortPath = path.resolve(__dirname, 'dist', 'vendor', 'crx-client-port.js')
+      server.watcher.add(crxPortPath)
+      server.watcher.on('change', (changedPath) => {
+        if (changedPath !== crxPortPath) return
+        applyPatch(crxPortPath, patchCrxClientPort)
+      })
+
+      // Re-patch vite-client.js whenever CRXJS regenerates it (overwriting the
+      // closeBundle disk patch).  Without this watcher the Patch D that scopes
+      // console forwarding to chrome-extension:// pages never survives a rebuild,
+      // so the portal page's own console.error calls bleed into the extension
+      // error panel (e.g. "[ZN] map failed: ReferenceError: L is not defined"
+      // showing up with the portal URL as context).
+      function patchViteClientDisk(src: string): string {
+        let out = src
+        // a) Remove webcomponents polyfill import
+        out = out.replace("import '/vendor/webcomponents-custom-elements.js';", '')
+        out = out.replace('import "/vendor/webcomponents-custom-elements.js";', '')
+        // b) Skip the direct-WebSocket fallback
+        const catchMarker = '} catch (e) {\n\t\t\t\tif (!hmrPort) {'
+        const catchIdx = out.indexOf(catchMarker)
+        if (catchIdx !== -1) {
+          const insertAt = catchIdx + catchMarker.length
+          out = out.slice(0, insertAt) +
+            '\n\t\t\t\t\treturn; /* crxjs: direct-WebSocket fallback skipped */' +
+            out.slice(insertAt)
+        }
+        // c) Suppress the detailed console.error
+        const errMarker = 'console.error(`[vite] failed to connect to websocket.'
+        const errIdx = out.indexOf(errMarker)
+        if (errIdx !== -1) {
+          const errEnd = out.indexOf('`);', errIdx) + 3
+          if (errEnd >= 3) {
+            out = out.slice(0, errIdx) + '/* crxjs: WebSocket error suppressed */' + out.slice(errEnd)
+          }
+        }
+        // d) Scope console forwarding to chrome-extension:// pages only
+        out = out.replace(
+          '"logLevels":["error","warn"]}',
+          '"logLevels":(location.protocol==="chrome-extension:"?["error","warn"]:[])}'
+        )
+        return out
+      }
+      const viteClientPath = path.resolve(__dirname, 'dist', 'vendor', 'vite-client.js')
+      server.watcher.add(viteClientPath)
+      server.watcher.on('change', (changedPath) => {
+        if (changedPath !== viteClientPath) return
+        applyPatch(viteClientPath, patchViteClientDisk)
+      })
+
       server.middlewares.use((req, res, next) => {
         if (!req.url?.includes('/vendor/vite-client.js')) return next()
         const filePath = path.resolve(__dirname, 'dist', 'vendor', 'vite-client.js')
@@ -87,6 +159,17 @@ function patchCrxjsDevAssets(): Plugin {
             src = src.slice(0, errIdx) + '/* crxjs: WebSocket error suppressed */' + src.slice(errEnd)
           }
         }
+
+        // Patch D — scope console forwarding to extension pages only.
+        // The content script's Vite client wraps console.error/warn on the host
+        // web page, intercepting the portal app's own internal errors and surfacing
+        // them as extension errors (e.g. "map-insights-grid: NOT FOUND").
+        // When running on a web page (content script context) we disable forwarding
+        // so only chrome-extension:// pages forward their console logs.
+        src = src.replace(
+          '"logLevels":["error","warn"]}',
+          '"logLevels":(location.protocol==="chrome-extension:"?["error","warn"]:[])}'
+        )
 
         res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
         res.end(src)
@@ -144,6 +227,12 @@ function patchCrxjsDevAssets(): Plugin {
         }
       }
 
+      // Patch C — scope console forwarding to extension pages only (see closeBundle for details).
+      patched = patched.replace(
+        '"logLevels":["error","warn"]}',
+        '"logLevels":(location.protocol==="chrome-extension:"?["error","warn"]:[])}'
+      )
+
       return patched === code ? null : { code: patched, map: null }
     },
 
@@ -166,6 +255,15 @@ function patchCrxjsDevAssets(): Plugin {
           out = out.replace(
             '  initPort = () => {\n    this.port?.disconnect();\n    this.port = chrome.runtime.connect({ name: "@crx/client" });\n    this.port.onDisconnect.addListener(this.handleDisconnect.bind(this));\n    this.port.onMessage.addListener(this.handleMessage.bind(this));\n    this.port.postMessage({ type: "connected" });\n  };',
             '  initPort = () => {\n    try {\n      this.port?.disconnect();\n      this.port = chrome.runtime.connect({ name: "@crx/client" });\n      this.port.onDisconnect.addListener(this.handleDisconnect.bind(this));\n      this.port.onMessage.addListener(this.handleMessage.bind(this));\n      this.port.postMessage({ type: "connected" });\n    } catch (error) {\n      if (error instanceof Error && error.message.includes("Extension context invalidated.")) location.reload();\n    }\n  };'
+          )
+          // Ping-interval guard — "Attempting to use a disconnected port object" is a
+          // sibling error to "Extension context invalidated." (bfcache / navigation).
+          // Both indicate the port is gone; neither should surface as an extension error.
+          // Use a regex so indentation variations between CRXJS versions don't break the match.
+          out = out.replace(
+            /error\.message\.includes\("Extension context invalidated\."\)\) \{\n(\s+)location\.reload\(\);\n(\s+)\} else\n(\s+)throw error;/,
+            (_, sp1, sp2, sp3) =>
+              `error.message.includes("Extension context invalidated.")) {\n${sp1}location.reload();\n${sp2}} else if (error instanceof Error && !error.message.includes("disconnected port")) {\n${sp3}throw error;\n${sp2}}`,
           )
           return out
         }
@@ -199,10 +297,66 @@ function patchCrxjsDevAssets(): Plugin {
             out = out.slice(0, errIdx) + '/* crxjs: WebSocket error suppressed */' + out.slice(errEnd)
           }
         }
+        // d) Scope console forwarding to extension pages only.
+        // The content script runs on web pages (e.g. the Zero Networks portal) and
+        // shares the same console object with the host page.  Without this guard,
+        // the Vite client wraps console.error/warn and forwards the portal app's
+        // own internal errors (e.g. "map-insights-grid: NOT FOUND") as if they
+        // were extension errors.  Restricting forwarding to chrome-extension://
+        // pages eliminates these false positives while preserving error reporting
+        // for the real extension pages (dashboard iframes, side panel, etc.).
+        out = out.replace(
+          '"logLevels":["error","warn"]}',
+          '"logLevels":(location.protocol==="chrome-extension:"?["error","warn"]:[])}'
+        )
         return out
       })
 
-      // Fix 2: strip the MAIN-world HMR console.warn from every loader file
+      // Fix 3: convert static HTTP imports in service-worker-loader.js to a
+      // resilient dynamic-import wrapper with exponential-backoff retry.
+      //
+      // CRXJS generates:
+      //   import 'http://localhost:5173/@vite/env';
+      //   import 'http://localhost:5173/@crx/client-worker';
+      //   import 'http://localhost:5173/src/background/index.ts';
+      //
+      // Chrome terminates MV3 service workers after 30 s of inactivity and
+      // tries to restart them on demand.  Each restart re-evaluates those
+      // static imports.  If the dev server is even momentarily unreachable
+      // (browser cold-start before Vite is up, a hot-rebuild window, dev
+      // server restart) the fetch fails and Chrome logs
+      // "Service worker registration failed. Status code: 3" in the Errors
+      // panel — the "again and again" pattern the user sees.
+      //
+      // Converting to dynamic imports with retry means:
+      //   • The SW registers successfully immediately (no registration failure)
+      //   • Dev modules load asynchronously once the server is ready
+      //   • Transient hiccups are retried silently instead of surfacing as errors
+      applyPatch(path.join(distDir, 'service-worker-loader.js'), (src) => {
+        // Only patch dev-mode files that contain the localhost HTTP imports
+        if (!src.includes("import 'http://localhost:")) return src
+        // Extract the quoted URLs from the static imports in order
+        const urlRegex = /^import '(http:\/\/[^']+)';$/gm
+        const urls: string[] = []
+        let m: RegExpExecArray | null
+        while ((m = urlRegex.exec(src)) !== null) urls.push(m[1])
+        if (urls.length === 0) return src
+        // Each import() uses a string literal (not a variable) — Chrome's service
+        // worker parser rejects import(expression) with a runtime variable.
+        const importLines = urls.map(u => `    await import('${u}');`).join('\n')
+        return (
+          `// patched by patchCrxjsDevAssets: resilient dynamic-import with retry\n` +
+          `(async function retry(n) {\n` +
+          `  try {\n` +
+          `${importLines}\n` +
+          `  } catch (_) {\n` +
+          `    if (n < 12) setTimeout(() => retry(n + 1), Math.min(500 * Math.pow(2, n), 8000));\n` +
+          `  }\n` +
+          `})(0);\n`
+        )
+      })
+
+      // Fix 4: strip the MAIN-world HMR console.warn from every content loader
       const loaderDir = path.join(distDir, 'src', 'content')
       if (fs.existsSync(loaderDir)) {
         for (const file of fs.readdirSync(loaderDir)) {

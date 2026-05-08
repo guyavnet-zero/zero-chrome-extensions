@@ -1,0 +1,351 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e41]:
+        - application [active] [ref=e50]
+        - status [ref=e51]: Screenreader support for the board is currently disabled. To enable it via Accessibility settings, press ⌘K, type Accessibility Settings, and press Enter. To see available keyboard shortcuts, enter ⌃⇧Question mark .
+        - generic:
+          - generic:
+            - generic:
+              - region "Comments on canvas":
+                - button "Create new comment"
+        - generic:
+          - region "Left sidebar":
+            - generic [ref=e52]:
+              - generic [ref=e53]:
+                - generic [ref=e54]:
+                  - button "Main menu" [ref=e55]:
+                    - img [ref=e56]
+                    - img [ref=e59]
+                  - generic [ref=e61]:
+                    - generic [ref=e62]:
+                      - status
+                    - button "Minimize UI" [ref=e63]:
+                      - generic:
+                        - img
+                - generic [ref=e65]:
+                  - generic [ref=e67]:
+                    - generic [ref=e69]:
+                      - button "Connect Dashboard, file name" [ref=e70]: Connect Dashboard
+                      - generic [ref=e71]: File name
+                    - button "Edit file menu" [ref=e75]:
+                      - generic:
+                        - img
+                  - link "2026 Q2" [ref=e78]:
+                    - /url: https://www.figma.com/files/team/674249783164240635/project/552153725
+                - generic [ref=e79]:
+                  - generic [ref=e81]:
+                    - heading "Pages Find" [level=2] [ref=e82]:
+                      - generic [ref=e83]:
+                        - button "Pages" [expanded] [ref=e84]:
+                          - generic:
+                            - generic: Pages
+                        - button "Find" [ref=e87]:
+                          - generic:
+                            - img
+                    - generic [ref=e90]:
+                      - grid [ref=e97]:
+                        - row "Connect dashboard WIP" [ref=e99]:
+                          - gridcell "Connect dashboard WIP" [ref=e100]:
+                            - button "Connect dashboard WIP" [ref=e103]:
+                              - generic [ref=e105]: Connect dashboard WIP
+                      - slider "Resize handle" [ref=e106]
+                  - generic [ref=e108]:
+                    - heading "Layers Collapse layers" [level=2] [ref=e109]:
+                      - generic [ref=e110]:
+                        - button "Layers" [expanded] [ref=e111]:
+                          - generic: Layers
+                        - button "Collapse layers" [ref=e113]:
+                          - generic:
+                            - img
+                    - generic [ref=e121]:
+                      - generic [ref=e122]:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - img "Frame":
+                                  - generic:
+                                    - img
+                                - generic [ref=e124]: Connect dashboard
+                      - generic [ref=e126]:
+                        - img "Instance" [ref=e130]:
+                          - img [ref=e132]
+                        - generic [ref=e135]: zoom--in-area
+                      - generic [ref=e137]:
+                        - img "Frame" [ref=e141]:
+                          - img [ref=e143]
+                        - generic [ref=e146]: Frame 1707480630
+                      - generic [ref=e148]:
+                        - img "Group" [ref=e153]:
+                          - img [ref=e155]
+                        - generic [ref=e158]: Group 1261157396
+                      - generic [ref=e160]:
+                        - img "Instance" [ref=e165]:
+                          - img [ref=e167]
+                        - generic [ref=e170]: search
+                      - generic [ref=e172]:
+                        - img "Auto layout" [ref=e177]:
+                          - img [ref=e179]
+                        - generic [ref=e182]: Frame 1707480692
+                      - generic [ref=e184]:
+                        - img "Auto layout" [ref=e189]:
+                          - img [ref=e191]
+                        - generic [ref=e194]: Frame 1707480693
+                      - generic [ref=e196]:
+                        - img "Auto layout" [ref=e201]:
+                          - img [ref=e203]
+                        - generic [ref=e206]: Frame 1707480627
+                      - generic [ref=e208]:
+                        - img "Auto layout" [ref=e213]:
+                          - img [ref=e215]
+                        - generic [ref=e218]: Frame 1707480694
+                      - generic [ref=e220]:
+                        - img "Rectangle" [ref=e225]:
+                          - img [ref=e227]
+                        - generic [ref=e230]: Rectangle 34624197
+                      - generic [ref=e232]:
+                        - img "Frame" [ref=e236]:
+                          - img [ref=e238]
+                        - generic [ref=e241]: Frame 1707480632
+                      - generic [ref=e243]:
+                        - img "Auto layout" [ref=e247]:
+                          - img [ref=e249]
+                        - generic [ref=e252]: Frame 578
+                      - generic [ref=e254]:
+                        - img "Auto layout" [ref=e258]:
+                          - img [ref=e260]
+                        - generic [ref=e263]: Frame 1707480622
+                      - generic [ref=e265]:
+                        - img "Auto layout" [ref=e269]:
+                          - img [ref=e271]
+                        - generic [ref=e274]: Frame 1707480597
+                      - generic [ref=e276]:
+                        - img "Auto layout" [ref=e280]:
+                          - img [ref=e282]
+                        - generic [ref=e285]: Frame 1707480631
+                      - generic [ref=e287]:
+                        - img "Text" [ref=e291]:
+                          - img [ref=e293]
+                        - generic [ref=e296]: "0"
+                      - generic [ref=e298]:
+                        - img "Text" [ref=e302]:
+                          - img [ref=e304]
+                        - generic [ref=e307]: "20"
+                      - generic [ref=e309]:
+                        - img "Auto layout" [ref=e313]:
+                          - img [ref=e315]
+                        - generic [ref=e318]: Menu
+                      - generic [ref=e320]:
+                        - img "Rectangle" [ref=e324]:
+                          - img [ref=e326]
+                        - generic [ref=e329]: image 19
+                      - generic [ref=e331]:
+                        - img "Instance" [ref=e335]:
+                          - img [ref=e337]
+                        - generic [ref=e340]: Sidebar
+                      - generic [ref=e342]:
+                        - img "Instance" [ref=e346]:
+                          - img [ref=e348]
+                        - generic [ref=e351]: Menu Item / Level 2
+                      - generic [ref=e353]:
+                        - img "Auto layout" [ref=e357]:
+                          - img [ref=e359]
+                        - generic [ref=e362]: Menu Section / Network / Levels 2 + 3
+                      - generic [ref=e364]:
+                        - img "Auto layout" [ref=e368]:
+                          - img [ref=e370]
+                        - generic [ref=e373]: Menu Section / Network / Levels 2 + 4
+                      - generic [ref=e375]:
+                        - img "Auto layout" [ref=e379]:
+                          - img [ref=e381]
+                        - generic [ref=e384]: Frame 586
+                      - generic [ref=e386]:
+                        - img "Frame" [ref=e390]:
+                          - img [ref=e392]
+                        - generic [ref=e395]: Checkbox
+                      - generic [ref=e397]:
+                        - img "Frame" [ref=e401]:
+                          - img [ref=e403]
+                        - generic [ref=e406]: Checkbox
+                      - generic [ref=e408]:
+                        - img "Frame" [ref=e412]:
+                          - img [ref=e414]
+                        - generic [ref=e417]: Checkbox
+                      - generic [ref=e419]:
+                        - img "Text" [ref=e423]:
+                          - img [ref=e425]
+                        - generic [ref=e428]: COLO
+                      - generic [ref=e430]:
+                        - img "Text" [ref=e434]:
+                          - img [ref=e436]
+                        - generic [ref=e439]: IL
+                      - generic [ref=e441]:
+                        - img "Text" [ref=e445]:
+                          - img [ref=e447]
+                        - generic [ref=e450]: IL Backup
+                      - generic [ref=e452]:
+                        - img "Vector" [ref=e456]:
+                          - img [ref=e458]
+                        - generic [ref=e461]: Primary
+                      - generic [ref=e463]:
+                        - img "Group" [ref=e467]:
+                          - img [ref=e469]
+                        - generic [ref=e472]: Group 1261157400
+                      - generic [ref=e474]:
+                        - img "Auto layout" [ref=e478]:
+                          - img [ref=e480]
+                        - generic [ref=e483]: Frame 1707480635
+                      - generic [ref=e485]:
+                        - img "Auto layout" [ref=e489]:
+                          - img [ref=e491]
+                        - generic [ref=e494]: Frame 1707480627
+                      - generic [ref=e496]:
+                        - img "Instance" [ref=e501]:
+                          - img [ref=e503]
+                        - generic [ref=e506]: search
+              - slider "Resize handle" [ref=e508]
+        - generic:
+          - generic:
+            - region "Right sidebar":
+              - generic [ref=e509]:
+                - generic [ref=e511]:
+                  - generic [ref=e513]:
+                    - generic [ref=e515]:
+                      - button "Multiplayer tools" [ref=e517]:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - img
+                                - generic:
+                                  - generic: g
+                        - img [ref=e520]
+                      - generic [ref=e523]:
+                        - button "Follow guy.avnet" [ref=e524]
+                        - generic [ref=e526]:
+                          - img [ref=e527]
+                          - generic [ref=e531]: g
+                    - generic [ref=e533]:
+                      - group "Prototype view" [ref=e534]:
+                        - button "Present" [ref=e535]:
+                          - generic:
+                            - img
+                        - button "Prototype view" [ref=e536]:
+                          - generic:
+                            - img
+                      - generic [ref=e537]:
+                        - button "Share" [ref=e538]
+                        - status
+                  - generic [ref=e539]:
+                    - tablist [ref=e541]:
+                      - tab "Comments" [ref=e542]:
+                        - generic [ref=e543]: Comments
+                        - generic [ref=e544]: Comments
+                      - tab "Properties" [selected] [ref=e545]:
+                        - generic [ref=e546]: Properties
+                        - generic [ref=e547]: Properties
+                    - button "100%" [ref=e549]:
+                      - text: 100%
+                      - img
+                  - generic [ref=e556]:
+                    - generic [ref=e557]:
+                      - img "Instance" [ref=e558]:
+                        - img [ref=e560]
+                      - button "search" [ref=e562]
+                      - link [ref=e564]:
+                        - /url: https://www.figma.com/design/XEoTpzjEFygfNMZDOnW2AZ?node-id=9-116&main-component=1
+                        - generic:
+                          - img
+                    - generic [ref=e567]:
+                      - img [ref=e569]
+                      - heading "Modes" [level=3] [ref=e571]
+                    - generic [ref=e572]:
+                      - generic [ref=e573]:
+                        - generic [ref=e574]:
+                          - img [ref=e576]
+                          - heading "Layout" [level=3] [ref=e578]
+                        - button "Copy" [ref=e580]:
+                          - generic:
+                            - img
+                      - generic [ref=e581]:
+                        - 'button "Copy Width: 288px" [ref=e583]':
+                          - generic "Width" [ref=e585]
+                          - generic "288px" [ref=e587]
+                        - 'button "Copy Height: 28px" [ref=e589]':
+                          - generic "Height" [ref=e591]
+                          - generic "28px" [ref=e593]
+                        - 'button "Copy Top: 92px" [ref=e595]':
+                          - generic "Top" [ref=e597]
+                          - generic "92px" [ref=e599]
+                        - 'button "Copy Left: 24px" [ref=e601]':
+                          - generic "Left" [ref=e603]
+                          - generic "24px" [ref=e605]
+                    - generic [ref=e612]:
+                      - button "Export" [ref=e613]:
+                        - generic:
+                          - img
+                        - generic: Export
+                      - button "Add export settings" [ref=e617]:
+                        - generic:
+                          - img
+                - slider "Resize handle" [ref=e618]
+      - generic:
+        - generic:
+          - generic:
+            - region "Application toolbar":
+              - generic [ref=e619]:
+                - toolbar "Editor" [ref=e621]:
+                  - generic [ref=e623]:
+                    - generic:
+                      - generic [ref=e626]:
+                        - generic [ref=e627]:
+                          - button "Move" [pressed] [ref=e628]:
+                            - img
+                          - button "Hand tool" [ref=e629]:
+                            - img
+                          - button "Comment" [ref=e630]:
+                            - img
+                        - group "Frame" [ref=e632]:
+                          - button [disabled] [ref=e633]:
+                            - img
+                          - button [disabled] [ref=e634]:
+                            - generic:
+                              - img
+                        - group "Rectangle" [ref=e635]:
+                          - button [disabled] [ref=e636]:
+                            - img
+                          - button [disabled] [ref=e637]:
+                            - generic:
+                              - img
+                        - group "Pen" [ref=e638]:
+                          - button [disabled] [ref=e639]:
+                            - img
+                          - button [disabled] [ref=e640]:
+                            - generic:
+                              - img
+                        - button [disabled] [ref=e641]:
+                          - img
+                        - button [disabled] [ref=e642]:
+                          - img
+                      - text: Request sent
+                  - generic [ref=e647]:
+                    - checkbox "Dev Mode" [ref=e649]
+                    - img [ref=e651]
+                - generic [ref=e654]:
+                  - img [ref=e656]
+                  - generic [ref=e659]: You can only view and comment on this file.
+                  - button "Ask to edit" [ref=e661]:
+                    - generic [ref=e662]: Ask to edit
+                  - button "Close" [ref=e663]:
+                    - generic:
+                      - img
+    - region "Help/zoom toolbar" [ref=e27]:
+      - toolbar "Help/zoom toolbar" [ref=e29]:
+        - button "Help" [ref=e31]:
+          - img
+  - generic:
+    - status
+    - group [ref=e665]:
+      - alert [ref=e667]
+      - alert [ref=e669]

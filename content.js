@@ -545,12 +545,12 @@
       // White text (set inline on the button) is readable on this green.
       "html.zn-dashboard-beta-active .zn-sidebar #" + BTN_ID +
       "{background:rgb(12,216,155)!important;" +
-      "border-radius:8px!important;}" +
+      "border-radius:0!important;}" +
 
       // Prevent hover from overriding the active green while the overlay is open.
       "html.zn-dashboard-beta-active .zn-sidebar #" + BTN_ID + ":hover" +
       "{background:rgb(12,216,155)!important;" +
-      "border-radius:8px!important;}";
+      "border-radius:0!important;}";
 
     (document.head || document.documentElement).appendChild(st);
   }
@@ -915,29 +915,23 @@
     icon.style.cssText =
       "display:inline-flex;align-items:center;justify-content:center;" +
       "width:20px;height:20px;flex-shrink:0;margin-right:10px;" +
-      "position:relative;top:6px;";
+      "position:relative;top:4px;left:-1px;";
     icon.innerHTML =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"' +
-      ' fill="none" stroke="currentColor" stroke-width="0.9"' +
-      ' stroke-linecap="round" stroke-linejoin="round">' +
-      // Monitor body
-      '<rect x="2" y="2" width="20" height="14" rx="2"/>' +
-      // Stand neck + base
-      '<path d="M12 16v3"/>' +
-      '<path d="M8 19h8"/>' +
-      // Bar chart (left half of screen)
-      '<path d="M5 12V9"/><path d="M7 12V7"/><path d="M9 12V10"/>' +
-      // Divider
-      '<path d="M11.5 4v10" stroke-width="0.45" stroke-dasharray="1.5 1.5"/>' +
-      // Pie chart circle + wedge (right half of screen)
-      '<circle cx="17" cy="9" r="3"/>' +
-      '<path d="M17 6v3h3"/>' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 28 28" fill="none">' +
+      '<g clip-path="url(#zn-db-clip)">' +
+      '<path d="M20.125 19.25H18.375V22.75H20.125V19.25Z" fill="currentColor"/>' +
+      '<path d="M9.625 17.5H7.875V22.75H9.625V17.5Z" fill="currentColor"/>' +
+      '<path d="M16.625 14H14.875V22.75H16.625V14Z" fill="currentColor"/>' +
+      '<path d="M13.125 15.75H11.375V22.75H13.125V15.75Z" fill="currentColor"/>' +
+      '<path d="M24.5 1.75H3.5C3.036 1.75 2.591 1.935 2.263 2.263C1.935 2.591 1.75 3.036 1.75 3.5V24.5C1.75 24.964 1.935 25.409 2.263 25.737C2.591 26.065 3.036 26.25 3.5 26.25H24.5C24.964 26.25 25.409 26.065 25.737 25.737C26.065 25.409 26.25 24.964 26.25 24.5V3.5C26.25 3.036 26.065 2.591 25.737 2.263C25.409 1.935 24.964 1.75 24.5 1.75ZM24.5 9.625H12.25V3.5H24.5V9.625ZM10.5 3.5V9.625H3.5V3.5H10.5ZM3.5 24.5V11.375H24.5V24.5H3.5Z" fill="currentColor"/>' +
+      '</g>' +
+      '<defs><clipPath id="zn-db-clip"><rect width="28" height="28" fill="white"/></clipPath></defs>' +
       '</svg>';
 
     const label = document.createElement("span");
     label.textContent = "Dashboard (Beta)";
     // Nudge text only: ~half a character width left and down (icon stays in place).
-    label.style.cssText = "position:relative;left:-4px;top:4px;";
+    label.style.cssText = "position:relative;left:-2px;top:4px;";
 
     btn.appendChild(icon);
     btn.appendChild(label);

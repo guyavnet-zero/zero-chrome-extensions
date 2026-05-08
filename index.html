@@ -13,22 +13,6 @@
     <link rel="stylesheet" href="index.css" />
 </head>
 <body>
-    <div id="dashboard-auth-gate" class="dashboard-auth-gate" role="alertdialog" aria-modal="true" aria-labelledby="zn-auth-gate-title" aria-hidden="true">
-        <div class="dashboard-auth-gate-card">
-            <h2 id="zn-auth-gate-title">Session expired</h2>
-            <div id="zn-auth-gate-body">Your portal session is no longer valid. Sign in again to load the dashboard.</div>
-            <button type="button" id="zn-auth-gate-login">Continue to Zero Networks Portal</button>
-            <button type="button" class="zn-gate-manual-toggle" id="zn-gate-manual-toggle">Having trouble? Paste your token manually</button>
-            <div class="zn-gate-manual-section" id="zn-gate-manual-section">
-                <label for="zn-gate-token-input">Bearer token (from portal DevTools → Network → Authorization header)</label>
-                <textarea id="zn-gate-token-input" placeholder="Bearer eyJ..." spellcheck="false" autocomplete="off"></textarea>
-                <span class="zn-gate-manual-error" id="zn-gate-manual-error">Token looks too short — paste the full Authorization header value.</span>
-                <button type="button" class="zn-gate-manual-apply" id="zn-gate-manual-apply">Use this token</button>
-            </div>
-            <button type="button" id="zn-gate-dump-btn">🔍 Dump console &amp; debug info</button>
-        </div>
-    </div>
-
     <aside class="sidebar">
         <div class="sidebar-logo">
             <span class="brand">ZERO</span><span class="brand-sub">Networks</span>
@@ -36,7 +20,10 @@
         <div class="sidebar-body">
             <div class="sidebar-section-label">Connect</div>
             <nav class="sidebar-nav">
-                <a href="#">Dashboard</a>
+                <a href="#">
+                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g clip-path="url(#clip-dash-root)"><path d="M20.125 19.25H18.375V22.75H20.125V19.25Z" fill="currentColor"/><path d="M9.625 17.5H7.875V22.75H9.625V17.5Z" fill="currentColor"/><path d="M16.625 14H14.875V22.75H16.625V14Z" fill="currentColor"/><path d="M13.125 15.75H11.375V22.75H13.125V15.75Z" fill="currentColor"/><path d="M24.5 1.75H3.5C3.03601 1.75046 2.59116 1.93499 2.26307 2.26307C1.93499 2.59116 1.75046 3.03601 1.75 3.5V24.5C1.75053 24.964 1.93508 25.4088 2.26315 25.7368C2.59122 26.0649 3.03603 26.2495 3.5 26.25H24.5C24.9639 26.2494 25.4087 26.0648 25.7367 25.7367C26.0648 25.4087 26.2494 24.9639 26.25 24.5V3.5C26.2495 3.03603 26.0649 2.59122 25.7368 2.26315C25.4088 1.93508 24.964 1.75053 24.5 1.75ZM24.5 9.625H12.25V3.5H24.5V9.625ZM10.5 3.5V9.625H3.5V3.5H10.5ZM3.5 24.5V11.375H24.5006L24.5018 24.5H3.5Z" fill="currentColor"/></g><defs><clipPath id="clip-dash-root"><rect width="28" height="28" fill="white"/></clipPath></defs></svg>
+                    Dashboard
+                </a>
             </nav>
         </div>
     </aside>
@@ -88,9 +75,9 @@
             <div class="stats-grid grid-full">
                 <div class="card">
                     <div class="kpi-header">
-                        <div class="card-label widget-title clickable-header cursor-pointer" id="header-license" title="Click to debug License Capacity data">License Capacity</div>
-                        <div class="kpi-icon kpi-icon-blue">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <div class="card-label widget-title clickable-header cursor-pointer" id="header-license" title="Click to debug Licence data">Licence</div>
+                        <div class="kpi-icon kpi-icon-indigo">
+                            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8.76029 0.221973C8.28912 -0.073991 7.69749 -0.073991 7.22633 0.221973C6.93988 0.401764 6.73374 0.501341 6.53028 0.556662C6.32683 0.611982 6.09928 0.63411 5.76464 0.625812C5.21316 0.611982 4.70184 0.91901 4.43681 1.41689C4.27619 1.71839 4.14501 1.91201 3.99509 2.06691C3.84518 2.22181 3.66313 2.35734 3.37133 2.5233C2.88678 2.79714 2.5923 3.32545 2.60569 3.89525C2.61372 4.241 2.5923 4.47335 2.53876 4.68633C2.48522 4.89931 2.38885 5.10953 2.21484 5.40549C1.92839 5.89231 1.92839 6.5036 2.21484 6.99042C2.38885 7.28639 2.48522 7.49937 2.53876 7.70959C2.5923 7.91981 2.61372 8.15492 2.60569 8.50067C2.5923 9.07047 2.88946 9.59878 3.37133 9.87262C3.66313 10.0386 3.85053 10.1741 4.00045 10.329C4.15036 10.4839 4.28154 10.6748 4.44216 10.979L3.10898 13.5708C2.88678 13.9995 3.04205 14.5361 3.45968 14.7657L5.4889 15.8942C5.90653 16.1266 6.42856 15.9634 6.65343 15.5291L8 12.9014L9.34657 15.5291C9.56877 15.9634 10.0908 16.1266 10.5111 15.8942L12.5403 14.7657C12.9553 14.5334 13.1132 13.9995 12.891 13.5708L11.5552 10.979C11.7185 10.6775 11.8496 10.4839 11.9996 10.329C12.1495 10.1741 12.3342 10.0386 12.6287 9.87262C13.1132 9.59878 13.4077 9.07047 13.3943 8.50067C13.3863 8.15492 13.4077 7.92257 13.4612 7.70959C13.5148 7.49661 13.6112 7.28639 13.7852 6.99042C14.0716 6.5036 14.0716 5.89231 13.7852 5.40549C13.6112 5.10953 13.5148 4.89655 13.4612 4.68633C13.4077 4.47611 13.3863 4.241 13.3943 3.89525C13.4077 3.32545 13.1105 2.79714 12.6287 2.5233C12.3369 2.35734 12.1495 2.22181 11.9996 2.06691C11.8496 1.91201 11.7185 1.72116 11.5578 1.41689C11.2928 0.916244 10.7815 0.611982 10.23 0.625812C9.89537 0.63411 9.6705 0.611982 9.46436 0.556662C9.25823 0.501341 9.05477 0.401764 8.76832 0.221973H8.76029ZM10.902 11.6097L12.1254 13.9802L10.0962 15.1087L8.62644 12.2431C8.67195 12.221 8.71478 12.1961 8.75761 12.1684C9.04406 11.9886 9.2502 11.889 9.45365 11.8337C9.65711 11.7784 9.88466 11.7563 10.2193 11.7646C10.4602 11.7701 10.6931 11.7148 10.902 11.6097ZM3.86124 13.9829L5.08466 11.6124C5.29347 11.7176 5.52638 11.7729 5.76732 11.7673C6.10195 11.759 6.32683 11.7812 6.53296 11.8365C6.7391 11.8918 6.94255 11.9914 7.229 12.1712C7.27183 12.1988 7.31467 12.2237 7.36018 12.2459L5.89046 15.1142L3.86124 13.9857V13.9829ZM7.6734 0.979863C7.8715 0.855392 8.11779 0.855392 8.3159 0.979863C8.63714 1.18178 8.92359 1.32562 9.23681 1.41413C9.55003 1.50264 9.86592 1.522 10.2434 1.5137C10.4736 1.50817 10.6878 1.63541 10.8002 1.84563C10.9796 2.18861 11.159 2.45968 11.3865 2.69756C11.6141 2.93544 11.8764 3.11523 12.2084 3.30055C12.4118 3.41396 12.535 3.63524 12.5296 3.87589C12.5216 4.26589 12.543 4.59228 12.626 4.91591C12.709 5.23953 12.8509 5.53273 13.0463 5.86742C13.1668 6.07211 13.1668 6.32658 13.0463 6.53127C12.8509 6.86319 12.7117 7.15915 12.626 7.48278C12.5403 7.8064 12.5216 8.13279 12.5296 8.5228C12.535 8.76068 12.4118 8.98196 12.2084 9.09813C11.8791 9.28345 11.6141 9.46878 11.3838 9.70389C11.1536 9.939 10.9769 10.2128 10.7975 10.5558C10.6878 10.766 10.4736 10.8933 10.2407 10.8877C9.86325 10.8794 9.54735 10.9016 9.23413 10.9873C8.92091 11.0731 8.63714 11.2114 8.3159 11.4133C8.11779 11.5378 7.8715 11.5378 7.6734 11.4133C7.35215 11.2114 7.0657 11.0675 6.75248 10.979C6.43926 10.8905 6.12337 10.8712 5.7459 10.8794C5.51567 10.885 5.30151 10.7577 5.18907 10.5475C5.0097 10.2073 4.83034 9.93347 4.60279 9.69559C4.37524 9.45771 4.11288 9.27792 3.78093 9.0926C3.57747 8.97919 3.45432 8.75791 3.45968 8.51727C3.46771 8.12726 3.44629 7.80087 3.3633 7.47724C3.28031 7.15362 3.1411 6.86042 2.94568 6.5285C2.82521 6.32381 2.82521 6.06934 2.94568 5.86465C3.1411 5.53273 3.28031 5.23677 3.36598 4.91314C3.45165 4.58952 3.47038 4.26313 3.46235 3.87312C3.457 3.63524 3.58015 3.41396 3.7836 3.29779C4.11556 3.11246 4.37791 2.92714 4.60814 2.69203C4.83837 2.45692 5.01238 2.18585 5.19175 1.84286C5.30151 1.63264 5.51567 1.50541 5.74858 1.51094C6.12605 1.51924 6.44194 1.49711 6.75516 1.41136C7.06838 1.32562 7.35215 1.18178 7.6734 0.979863ZM10.1363 6.19658C10.1363 6.78345 9.91067 7.34629 9.50903 7.76127C9.10739 8.17626 8.56265 8.40939 7.99465 8.40939C7.42664 8.40939 6.8819 8.17626 6.48026 7.76127C6.07862 7.34629 5.85298 6.78345 5.85298 6.19658C5.85298 5.6097 6.07862 5.04686 6.48026 4.63188C6.8819 4.2169 7.42664 3.98376 7.99465 3.98376C8.56265 3.98376 9.10739 4.2169 9.50903 4.63188C9.91067 5.04686 10.1363 5.6097 10.1363 6.19658ZM7.99465 3.09863C7.6009 3.09863 7.21101 3.17876 6.84724 3.33445C6.48346 3.49014 6.15293 3.71833 5.87451 4.006C5.59609 4.29367 5.37523 4.63519 5.22455 5.01104C5.07387 5.3869 4.99632 5.78975 4.99632 6.19658C4.99632 6.6034 5.07387 7.00625 5.22455 7.38211C5.37523 7.75797 5.59609 8.09948 5.87451 8.38715C6.15293 8.67482 6.48346 8.90302 6.84724 9.0587C7.21101 9.21439 7.6009 9.29452 7.99465 9.29452C8.38839 9.29452 8.77828 9.21439 9.14206 9.0587C9.50583 8.90302 9.83636 8.67482 10.1148 8.38715C10.3932 8.09948 10.6141 7.75797 10.7647 7.38211C10.9154 7.00625 10.993 6.6034 10.993 6.19658C10.993 5.78975 10.9154 5.3869 10.7647 5.01104C10.6141 4.63519 10.3932 4.29367 10.1148 4.006C9.83636 3.71833 9.50583 3.49014 9.14206 3.33445C8.77828 3.17876 8.38839 3.09863 7.99465 3.09863Z"/></svg>
                         </div>
                     </div>
                     <div id="kpi-licenses" class="widget-primary-metric">&mdash; / &mdash;</div>
@@ -100,7 +87,7 @@
                     <div class="kpi-header">
                         <div class="card-label widget-title" id="header-kpi-sessions">Overall Sessions</div>
                         <div class="kpi-icon kpi-icon-green">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            <svg viewBox="0 0 32 32" fill="currentColor"><path d="M30 30h-2v-5a5.006 5.006 0 0 0-5-5v-2a7.01 7.01 0 0 1 7 7Z"/><path d="M22 30h-2v-5a5.006 5.006 0 0 0-5-5H9a5.006 5.006 0 0 0-5 5v5H2v-5a7.01 7.01 0 0 1 7-7h6a7.01 7.01 0 0 1 7 7Z"/><path d="M20 2v2a5 5 0 0 1 0 10v2a7 7 0 0 0 0-14"/><path d="M12 4A5 5 0 1 1 7 9a5 5 0 0 1 5-5m0-2a7 7 0 1 0 7 7a7 7 0 0 0-7-7"/></svg>
                         </div>
                     </div>
                     <div id="kpi-sessions-trigger" class="kpi-value-clickable kpi-sessions-trigger-block" title="Click to view session breakdown">
@@ -116,8 +103,8 @@
                 <div class="card">
                     <div class="kpi-header">
                         <div class="card-label widget-title" id="header-region-health">Region Health</div>
-                        <div class="kpi-icon kpi-icon-green">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/><path d="M12 9v6l3 1.5"/></svg>
+                        <div class="kpi-icon kpi-icon-blue">
+                            <svg viewBox="0 0 32 32" fill="currentColor"><path d="M30 16a14.031 14.031 0 1 0-7.14 12.191l.117.026l.024-.111A14 14 0 0 0 30 16M4 16a12 12 0 0 1 .395-3h4.243l4.992 4.16l-1.91 2.546a2.01 2.01 0 0 0 .186 2.614L14 24.414v3.405A12.01 12.01 0 0 1 4 16m9.32 4.906l3.05-4.066L9.362 11H5.106a11.962 11.962 0 0 1 17.778-4.813L22.279 8h-5.693l-3.043 3.043l9.354 8.313l-1.649 7.419A11.9 11.9 0 0 1 16 28v-4.414Zm10.315 4.344l1.213-5.46a2 2 0 0 0-.623-1.927l-7.768-6.906l.957-.957h4.865a2 2 0 0 0 1.898-1.368l.353-1.06a11.98 11.98 0 0 1-.895 17.679Z"/></svg>
                         </div>
                     </div>
                     <div id="kpi-regions-trigger" class="kpi-value-clickable" title="Click to view region details">
@@ -129,7 +116,7 @@
                     <div class="kpi-header">
                         <div class="card-label widget-title" id="header-posture">POSTURE</div>
                         <div class="kpi-icon kpi-icon-indigo">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            <svg width="16" height="13" viewBox="0 0 16 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.41406 0.777695C4.56719 0.546445 4.50469 0.23707 4.27656 0.0839449C4.04844 -0.0691801 3.73594 -0.00668021 3.58281 0.221445L1.92031 2.71519L0.851562 1.64644C0.657812 1.45269 0.339062 1.45269 0.145312 1.64644C-0.0484375 1.84019 -0.0484375 2.15895 0.145312 2.35269L1.64531 3.85269C1.75156 3.95895 1.89844 4.01207 2.04844 3.99644C2.19844 3.98082 2.33281 3.89957 2.41406 3.77769L4.41406 0.777695ZM6.49844 1.49957C6.22344 1.49957 5.99844 1.72457 5.99844 1.99957C5.99844 2.27457 6.22344 2.49957 6.49844 2.49957H15.4984C15.7734 2.49957 15.9984 2.27457 15.9984 1.99957C15.9984 1.72457 15.7734 1.49957 15.4984 1.49957H6.49844ZM6.49844 6.49957C6.22344 6.49957 5.99844 6.72457 5.99844 6.99957C5.99844 7.27457 6.22344 7.49957 6.49844 7.49957H15.4984C15.7734 7.49957 15.9984 7.27457 15.9984 6.99957C15.9984 6.72457 15.7734 6.49957 15.4984 6.49957H6.49844ZM5.49844 11.4996C5.22344 11.4996 4.99844 11.7246 4.99844 11.9996C4.99844 12.2746 5.22344 12.4996 5.49844 12.4996H15.4984C15.7734 12.4996 15.9984 12.2746 15.9984 11.9996C15.9984 11.7246 15.7734 11.4996 15.4984 11.4996H5.49844ZM1.74844 11.2496C1.54953 11.2496 1.35876 11.3286 1.21811 11.4692C1.07746 11.6099 0.998438 11.8007 0.998438 11.9996C0.998438 12.1985 1.07746 12.3892 1.21811 12.5299C1.35876 12.6706 1.54953 12.7496 1.74844 12.7496C1.94735 12.7496 2.13812 12.6706 2.27877 12.5299C2.41942 12.3892 2.49844 12.1985 2.49844 11.9996C2.49844 11.8007 2.41942 11.6099 2.27877 11.4692C2.13812 11.3286 1.94735 11.2496 1.74844 11.2496ZM4.27656 5.08394C4.04531 4.93082 3.73594 4.99332 3.58281 5.22145L1.92031 7.71519L0.851562 6.64644C0.657812 6.45269 0.339062 6.45269 0.145312 6.64644C-0.0484375 6.84019 -0.0484375 7.15894 0.145312 7.35269L1.64531 8.85269C1.75156 8.95894 1.89844 9.01207 2.04844 8.99644C2.19844 8.98082 2.33281 8.89957 2.41406 8.77769L4.41406 5.77769C4.56719 5.54644 4.50469 5.23707 4.27656 5.08394Z" fill="#DB7800"/></svg>
                         </div>
                     </div>
                     <div id="kpi-posture-trigger" class="kpi-posture-trigger" title="Click to view posture details">
@@ -160,6 +147,7 @@
                                 <option value="sessions">Session Operations</option>
                                 <option value="policy">Policy Operations</option>
                                 <option value="region_health">Regions health</option>
+                                <option value="posture_audit">Posture Audits</option>
                             </select>
                         </div>
                         <div id="activity-range-pills" class="activity-range-pills-segmented" role="group" aria-label="Chart day range">
@@ -264,6 +252,19 @@
                                 <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
                                 <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Posture Violations widget -->
+                <div class="card" id="card-posture-violations-wrap">
+                    <div class="card-label widget-title clickable-header cursor-pointer" id="header-posture-violations" title="Click to debug Posture Violations data">POSTURE VIOLATIONS <span class="posture-violations-period-badge">14d</span></div>
+                    <div id="card-posture-violations" class="metric-scroll">
+                        <div class="audit-widget-loading-static" id="audit-posture-violations-loading" aria-busy="true" aria-label="Loading posture violations">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <div class="loading-spinner-text">Loading 30-day data&hellip;</div>
+                            <div class="audit-skeleton" style="width:88%;max-width:220px;margin-top:4px"></div>
+                            <div class="audit-skeleton" style="width:72%;max-width:180px"></div>
                         </div>
                     </div>
                 </div>
@@ -422,6 +423,42 @@
             <div class="sessions-drawer-stats" id="policy-drawer-stats" style="grid-template-columns:1fr"></div>
             <div id="policy-drawer-metadata" class="policy-metadata-section"></div>
             <div id="policy-drawer-details" class="policy-details-section"></div>
+        </div>
+    </div>
+
+    <!-- Posture Audit Drawer ─────────────────────────────────────────────── -->
+    <div id="posture-audit-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="posture-audit-drawer-title">
+        <div class="sessions-drawer" id="posture-audit-drawer">
+            <div class="sessions-drawer-header">
+                <span class="sessions-drawer-title" id="posture-audit-drawer-title">Posture Audits</span>
+                <button type="button" class="sessions-drawer-close" id="posture-audit-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="sessions-drawer-stats" id="posture-audit-drawer-stats" style="grid-template-columns:repeat(3,1fr)"></div>
+            <div id="posture-audit-drawer-content" class="policy-metadata-section"></div>
+        </div>
+    </div>
+
+    <!-- Session Operations Audit Drawer ─────────────────────────────────── -->
+    <div id="session-audit-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="session-audit-drawer-title">
+        <div class="sessions-drawer" id="session-audit-drawer">
+            <div class="sessions-drawer-header">
+                <span class="sessions-drawer-title" id="session-audit-drawer-title">Session Operations</span>
+                <button type="button" class="sessions-drawer-close" id="session-audit-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="sessions-drawer-stats" id="session-audit-drawer-stats" style="grid-template-columns:repeat(4,1fr)"></div>
+            <div id="session-audit-drawer-content" class="policy-metadata-section"></div>
+        </div>
+    </div>
+
+    <!-- Region Health Audit Drawer ──────────────────────────────────────── -->
+    <div id="region-audit-drawer-backdrop" class="sessions-drawer-backdrop" role="dialog" aria-modal="true" aria-labelledby="region-audit-drawer-title">
+        <div class="sessions-drawer" id="region-audit-drawer">
+            <div class="sessions-drawer-header">
+                <span class="sessions-drawer-title" id="region-audit-drawer-title">Region Health Events</span>
+                <button type="button" class="sessions-drawer-close" id="region-audit-drawer-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="sessions-drawer-stats" id="region-audit-drawer-stats" style="grid-template-columns:repeat(2,1fr)"></div>
+            <div id="region-audit-drawer-content" class="policy-metadata-section"></div>
         </div>
     </div>
 

@@ -6,16 +6,28 @@
     try { return !!chrome.runtime?.id; } catch (_) { return false; }
   }
 
-  // Forward tokens relayed by page-token-bridge.js (MAIN world) to the
-  // background service worker so it can persist them in chrome.storage.local.
+  // Forward tokens relayed by page-token-bridge.js (MAIN world).
+  // Write directly to chrome.storage.local first (works even when the service
+  // worker is evicted), then also relay to the background SW as a secondary path.
   window.addEventListener("message", function (event) {
     if (event.source !== window) return;
     if (!event.data || event.data.type !== "ZN_TOKEN_CAPTURED") return;
     var token = event.data.token;
     if (!token || String(token).trim().length < 24) return;
     if (!isExtensionContextValid()) return;
+    var tok = String(token).trim();
+    var host = location.hostname;
+    // Primary: write directly to storage — reliable even when SW is evicted.
     try {
-      chrome.runtime.sendMessage({ type: "ZN_TOKEN_CAPTURED", token: String(token).trim(), host: location.hostname });
+      chrome.storage.local.get("znTokens", function (result) {
+        var tokens = (result && result.znTokens) || {};
+        tokens[host] = { token: tok, at: Date.now() };
+        chrome.storage.local.set({ znTokens: tokens });
+      });
+    } catch (_) {}
+    // Secondary: relay to background SW (may fail if evicted — that's OK).
+    try {
+      chrome.runtime.sendMessage({ type: "ZN_TOKEN_CAPTURED", token: tok, host: host });
     } catch (_) {}
   });
 
@@ -26,6 +38,10 @@
     try {
       if (request.action === 'triggerFreshApiCall') {
         window.postMessage({ type: 'ZN_TRIGGER_FRESH_API' }, '*');
+        sendResponse({ ok: true });
+      }
+      if (request.action === 'openDashboard') {
+        showDashboard();
         sendResponse({ ok: true });
       }
     } catch (_) {}
@@ -551,12 +567,31 @@
       // White text (set inline on the button) is readable on this green.
       "html.zn-dashboard-beta-active .zn-sidebar #" + BTN_ID +
       "{background:rgb(12,216,155)!important;" +
-      "border-radius:8px!important;}" +
+      "border-radius:0!important;}" +
 
       // Prevent hover from overriding the active green while the overlay is open.
       "html.zn-dashboard-beta-active .zn-sidebar #" + BTN_ID + ":hover" +
       "{background:rgb(12,216,155)!important;" +
-      "border-radius:8px!important;}";
+      "border-radius:0!important;}" +
+
+      // ── Portal page-header title overrides ───────────────────────────────────
+      // Make the portal's "Connect /" breadcrumb match .topbar-bc-parent:
+      //   font-size 0.72rem · weight 400 · color #94a3b8 · line-height 1.2
+      ".zn-page-header__main-title__title__path" +
+      "{font-family:\"Inter\",system-ui,-apple-system,BlinkMacSystemFont," +
+      "\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif!important;" +
+      "font-size:0.72rem!important;font-weight:400!important;" +
+      "color:#94a3b8!important;line-height:1.2!important;" +
+      "letter-spacing:normal!important;}" +
+
+      // Make the portal's page title (e.g. "Policies") match .topbar-bc-current:
+      //   font-size 1.05rem · weight 700 · color #1a233a · letter-spacing -0.02em
+      ".zn-header-primary__text,.zn-header-primary__text>span" +
+      "{font-family:\"Inter\",system-ui,-apple-system,BlinkMacSystemFont," +
+      "\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif!important;" +
+      "font-size:1.05rem!important;font-weight:700!important;" +
+      "color:#1a233a!important;letter-spacing:-0.02em!important;" +
+      "line-height:1.2!important;}";
 
     (document.head || document.documentElement).appendChild(st);
   }
@@ -719,7 +754,11 @@
     const mount = document.getElementById(MOUNT_ID);
     if (!mount || mount.style.display === "none") return;
     const right = getSidebarRight();
-    if (right > 0) mount.style.left = right + "px";
+    if (right > 0) {
+      // Same 70% cap applied at creation time — keep the iframe at least 30% wide on resize.
+      const safeLeft = Math.min(right, Math.floor(window.innerWidth * 0.7));
+      mount.style.left = safeLeft + "px";
+    }
   }
 
   // ── Active-item highlight reset (JS override) ────────────────────────────
@@ -771,8 +810,10 @@
   // ── Show / hide dashboard ─────────────────────────────────────────────────
 
   function showDashboard() {
-    if (!chrome.runtime || !chrome.runtime.getURL) {
-      alert("Dashboard extension was reloaded — please refresh this tab.");
+    // chrome.runtime.id becomes undefined when the extension context is
+    // invalidated (e.g. after a hot-reload).  Checking the id — not the
+    // getURL function reference — is the correct guard.
+    if (!chrome.runtime?.id) {
       return;
     }
 
@@ -791,7 +832,10 @@
       return;
     }
 
-    const leftOffset = getSidebarRight();
+    // Cap leftOffset so the iframe is never narrower than 30% of the viewport.
+    // getSidebarRight() can over-report if the portal has a wide transitional element.
+    const rawLeft = getSidebarRight();
+    const leftOffset = Math.min(rawLeft, Math.floor(window.innerWidth * 0.7));
 
     const mount = document.createElement("div");
     mount.id    = MOUNT_ID;
@@ -809,7 +853,14 @@
     });
 
     const iframe = document.createElement("iframe");
-    iframe.src   = chrome.runtime.getURL("pages/connect/index.html") + "?portalHost=" + encodeURIComponent(location.origin);
+    let iframeSrc: string;
+    try {
+      iframeSrc = chrome.runtime.getURL("pages/connect/index.html") + "?portalHost=" + encodeURIComponent(location.origin);
+    } catch (_) {
+      // Extension context became invalid between the guard and here.
+      return;
+    }
+    iframe.src = iframeSrc;
     iframe.setAttribute('data-zn-dashboard-iframe', 'true');
     Object.assign(iframe.style, {
       width:   "100%",
@@ -876,29 +927,23 @@
     icon.style.cssText =
       "display:inline-flex;align-items:center;justify-content:center;" +
       "width:20px;height:20px;flex-shrink:0;margin-right:10px;" +
-      "position:relative;top:6px;";
+      "position:relative;top:4px;left:-1px;";
     icon.innerHTML =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"' +
-      ' fill="none" stroke="currentColor" stroke-width="0.9"' +
-      ' stroke-linecap="round" stroke-linejoin="round">' +
-      // Monitor body
-      '<rect x="2" y="2" width="20" height="14" rx="2"/>' +
-      // Stand neck + base
-      '<path d="M12 16v3"/>' +
-      '<path d="M8 19h8"/>' +
-      // Bar chart (left half of screen)
-      '<path d="M5 12V9"/><path d="M7 12V7"/><path d="M9 12V10"/>' +
-      // Divider
-      '<path d="M11.5 4v10" stroke-width="0.45" stroke-dasharray="1.5 1.5"/>' +
-      // Pie chart circle + wedge (right half of screen)
-      '<circle cx="17" cy="9" r="3"/>' +
-      '<path d="M17 6v3h3"/>' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 28 28" fill="none">' +
+      '<g clip-path="url(#zn-db-clip)">' +
+      '<path d="M20.125 19.25H18.375V22.75H20.125V19.25Z" fill="currentColor"/>' +
+      '<path d="M9.625 17.5H7.875V22.75H9.625V17.5Z" fill="currentColor"/>' +
+      '<path d="M16.625 14H14.875V22.75H16.625V14Z" fill="currentColor"/>' +
+      '<path d="M13.125 15.75H11.375V22.75H13.125V15.75Z" fill="currentColor"/>' +
+      '<path d="M24.5 1.75H3.5C3.036 1.75 2.591 1.935 2.263 2.263C1.935 2.591 1.75 3.036 1.75 3.5V24.5C1.75 24.964 1.935 25.409 2.263 25.737C2.591 26.065 3.036 26.25 3.5 26.25H24.5C24.964 26.25 25.409 26.065 25.737 25.737C26.065 25.409 26.25 24.964 26.25 24.5V3.5C26.25 3.036 26.065 2.591 25.737 2.263C25.409 1.935 24.964 1.75 24.5 1.75ZM24.5 9.625H12.25V3.5H24.5V9.625ZM10.5 3.5V9.625H3.5V3.5H10.5ZM3.5 24.5V11.375H24.5V24.5H3.5Z" fill="currentColor"/>' +
+      '</g>' +
+      '<defs><clipPath id="zn-db-clip"><rect width="28" height="28" fill="white"/></clipPath></defs>' +
       '</svg>';
 
     const label = document.createElement("span");
     label.textContent = "Dashboard (Beta)";
     // Nudge text only: ~half a character width left and down (icon stays in place).
-    label.style.cssText = "position:relative;left:-4px;top:4px;";
+    label.style.cssText = "position:relative;left:-2px;top:4px;";
 
     btn.appendChild(icon);
     btn.appendChild(label);
@@ -1018,11 +1063,13 @@
 
   function handleDashboardAuthMessage(event) {
     if (event.data && event.data.type === 'ZN_DASHBOARD_AUTH_REQUIRED') {
-      // Redirect the portal tab to its own login page (same origin, /login path).
-      // Using the current origin keeps us on the right portal environment
-      // (portal-dev vs zerocorp-admin-dev vs production).
-      var loginUrl = window.location.origin + '/login';
-      window.location.href = loginUrl;
+      // Clear the reopen preference before navigating so the dashboard doesn't
+      // auto-reopen after the redirect, which would cause an infinite refresh loop.
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch (_) {}
+      // Navigate to the portal root — the SPA will redirect to login if the session
+      // is expired.  Do NOT use origin + '/login': the portal uses hash routing so
+      // the server only serves index.html at '/' and any other path returns 404.
+      window.location.href = window.location.origin + '/';
     }
   }
 
@@ -1034,6 +1081,17 @@
 
     // Listen for auth messages from dashboard iframe
     window.addEventListener('message', handleDashboardAuthMessage);
+
+    // Listen for portal navigation requests from the dashboard iframe
+    window.addEventListener('message', function handleDashboardNavMessage(event) {
+      if (!event.data || event.data.type !== 'ZN_NAVIGATE_PORTAL') return;
+      var url = event.data.url;
+      if (!url || typeof url !== 'string') return;
+      // Only allow navigation to same-origin URLs
+      if (!url.startsWith(window.location.origin + '/') && !url.startsWith(window.location.origin + '#')) return;
+      hideDashboardFromNavClick();
+      window.location.href = url;
+    });
 
     document.addEventListener(
       "click",
