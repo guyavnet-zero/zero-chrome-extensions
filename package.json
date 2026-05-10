@@ -1,7 +1,7 @@
 {
   "name": "zero-dashboard",
   "type": "module",
-  "version": "2.0.78",
+  "version": "2.0.82",
   "private": true,
   "scripts": {
     "version:bump": "npm version patch --no-git-tag-version",
