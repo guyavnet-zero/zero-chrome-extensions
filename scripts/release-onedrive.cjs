@@ -85,8 +85,13 @@ if (githubToken) {
     (res) => {
       if (res.statusCode === 200) console.log(`  Gist updated → version.json now reports v${version}`)
       else console.warn(`  Gist update failed (HTTP ${res.statusCode}) — update it manually at gist.github.com`)
+      res.resume() // drain the response body so the socket closes and Node.js can exit
     }
   )
+  req.setTimeout(8000, () => {
+    console.warn('  Gist update timed out — update it manually at gist.github.com')
+    req.destroy()
+  })
   req.on('error', () => console.warn('  Gist update failed (network error) — update it manually at gist.github.com'))
   req.write(body)
   req.end()

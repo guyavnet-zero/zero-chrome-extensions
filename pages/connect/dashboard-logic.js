@@ -2835,27 +2835,36 @@ function buildPolicyModeDailyInsightsFrom100101102(poolItems, timeBuckets) {
 
 // ── Posture Audit helpers ──────────────────────────────────────────────────
 
-var AUDIT_TYPES_POSTURE_VIOLATIONS  = { 390: true, 374: true };
-var AUDIT_TYPES_POSTURE_RESOLVED    = { 391: true };
+// Type 374 = "Connect posture check failed" — the only Connect Device Posture violation event.
+// Types 390/391 are ISPM identity-posture events and must NOT be mixed in here.
+var AUDIT_TYPES_POSTURE_VIOLATIONS  = { 374: true };
+var AUDIT_TYPES_POSTURE_RESOLVED    = {};   // No "resolved" event type for Connect Device Posture
 var AUDIT_TYPES_POSTURE_ADMIN       = { 387: true, 388: true, 389: true, 392: true, 393: true, 394: true };
 
-var POSTURE_CHECK_TYPE_LABELS = {
-    12: 'MFA check',
-    13: 'MFA configuration',
-    18: 'Password policy',
-    19: 'OS version',
-    20: 'Inactive account'
-};
+// fc.checks values are human-readable error strings from the API.
+// Map common patterns to short, friendly check type names.
+var POSTURE_CHECK_PATTERNS = [
+    { re: /^none of the required processes are running/i,  label: 'Process is Running' },
+    { re: /^OS version/i,                                   label: 'OS Version'          },
+    { re: /^none of the specified files exist/i,            label: 'File Exists'         },
+    { re: /^registry key/i,                                 label: 'Registry Key'        },
+    { re: /^disk encryption/i,                              label: 'Disk Encryption'     },
+    { re: /^screen lock/i,                                  label: 'Screen Lock'         },
+    { re: /^certificate/i,                                  label: 'Certificate'         },
+    { re: /^firewall/i,                                     label: 'Firewall'            }
+];
 
-function postureCheckTypeLabel(n) {
-    var num = Number(n);
-    return POSTURE_CHECK_TYPE_LABELS[num] || ('Check #' + num);
+function postureCheckTypeLabel(s) {
+    var str = String(s || '');
+    for (var i = 0; i < POSTURE_CHECK_PATTERNS.length; i++) {
+        if (POSTURE_CHECK_PATTERNS[i].re.test(str)) return POSTURE_CHECK_PATTERNS[i].label;
+    }
+    return str; // fallback: return raw string for unknown check types
 }
 
 function postureAuditEventBadgeText(typeNum) {
     var n = Number(typeNum);
-    if (AUDIT_TYPES_POSTURE_VIOLATIONS[n]) return 'Violation Found';
-    if (AUDIT_TYPES_POSTURE_RESOLVED[n])  return 'Resolved';
+    if (n === 374) return 'Check Failed';
     if (n === 387) return 'Profile Created';
     if (n === 388) return 'Profile Edited';
     if (n === 389) return 'Profile Deleted';
@@ -2867,8 +2876,7 @@ function postureAuditEventBadgeText(typeNum) {
 
 function postureAuditEventBadge(typeNum) {
     var n = Number(typeNum);
-    if (AUDIT_TYPES_POSTURE_VIOLATIONS[n])  return '<span class="posture-badge posture-badge--violation">Violation Found</span>';
-    if (AUDIT_TYPES_POSTURE_RESOLVED[n])    return '<span class="posture-badge posture-badge--resolved">Resolved</span>';
+    if (n === 374) return '<span class="posture-badge posture-badge--violation">Check Failed</span>';
     if (n === 387) return '<span class="posture-badge posture-badge--admin">Profile Created</span>';
     if (n === 388) return '<span class="posture-badge posture-badge--admin">Profile Edited</span>';
     if (n === 389) return '<span class="posture-badge posture-badge--admin-del">Profile Deleted</span>';
@@ -2932,42 +2940,48 @@ function buildPostureAuditDailyInsights(poolItems, timeBuckets) {
 }
 
 /**
- * Users with more than 2 type-390 (Violation Found) events in the last 30 days.
+ * Users with more than 2 type-374 (Connect posture check failed) events in the last 30 days.
  * Returns array of { userName, count, topCheckType } sorted by count descending.
- * Threshold: > 2 (i.e. 3 or more violations) to filter out one-off incidents.
+ * Threshold: > 2 (i.e. 3 or more failures) to filter out one-off incidents.
  */
 function postureTopFailingUsers30d(audItems) {
     var cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    var userCounts = Object.create(null);   // userName → total violation count
-    var userChecks = Object.create(null);   // userName → { checkType → count }
+    var userMap = Object.create(null);   // userName → { count, checkMap }
 
     (audItems || []).forEach(function(item) {
-        if (auditTypeToNum(item) !== 390) return;
+        if (auditTypeToNum(item) !== 374) return;
         var ts = getAuditItemTs(item);
         if (ts == null || ts < cutoff) return;
         var d = parseAuditDetails(item);
         if (!d) return;
-        var uName = d.userName || item.reportedObjectId || '\u2014';
-        if (!uName || uName === '\u2014') return;
-        var checks = Array.isArray(d.postureCheckTypes) ? d.postureCheckTypes : [];
-        var increment = Math.max(checks.length, 1);
-        userCounts[uName] = (userCounts[uName] || 0) + increment;
-        if (!userChecks[uName]) userChecks[uName] = Object.create(null);
-        checks.forEach(function(ct) {
-            userChecks[uName][ct] = (userChecks[uName][ct] || 0) + 1;
-        });
+        var uName = d.user || (item.performedBy && item.performedBy.name) || '';
+        if (!uName) return;
+        if (!userMap[uName]) userMap[uName] = { count: 0, checkMap: Object.create(null) };
+        var u = userMap[uName];
+        if (Array.isArray(d.failedChecks)) {
+            d.failedChecks.forEach(function(fc) {
+                if (Array.isArray(fc.checks)) {
+                    fc.checks.forEach(function(c) {
+                        u.count++;
+                        var k = String(c);
+                        u.checkMap[k] = (u.checkMap[k] || 0) + 1;
+                    });
+                }
+            });
+        } else {
+            u.count++;
+        }
     });
 
     var result = [];
-    Object.keys(userCounts).forEach(function(uName) {
-        var c = userCounts[uName];
-        if (c <= 2) return;
-        var checkMap = userChecks[uName] || {};
+    Object.keys(userMap).forEach(function(uName) {
+        var u = userMap[uName];
+        if (u.count <= 2) return;
         var topCt = null, topCtCount = 0;
-        Object.keys(checkMap).forEach(function(ct) {
-            if (checkMap[ct] > topCtCount) { topCtCount = checkMap[ct]; topCt = ct; }
+        Object.keys(u.checkMap).forEach(function(c) {
+            if (u.checkMap[c] > topCtCount) { topCtCount = u.checkMap[c]; topCt = c; }
         });
-        result.push({ userName: uName, count: c, topCheckType: topCt });
+        result.push({ userName: uName, count: u.count, topCheckType: topCt });
     });
     result.sort(function(a, b) { return b.count - a.count; });
     return result;
@@ -2976,8 +2990,7 @@ function postureTopFailingUsers30d(audItems) {
 /** Day with the highest violation count, if it's ≥3 and ≥2× the rolling daily average. */
 function postureViolationSpike30d(audItems, timeBuckets) {
     var dayCounts = timeBuckets.map(function(b) {
-        return countAuditTypeInBucketRange(audItems, 390, b.startMs, b.endMs) +
-               countAuditTypeInBucketRange(audItems, 374, b.startMs, b.endMs);
+        return countAuditTypeInBucketRange(audItems, 374, b.startMs, b.endMs);
     });
     if (!dayCounts.length) return null;
     var maxCount = Math.max.apply(null, dayCounts);
@@ -2991,61 +3004,60 @@ function postureViolationSpike30d(audItems, timeBuckets) {
     };
 }
 
-/** Per-check-type violation counts across all 390 events in 30d pool for widget bars. */
+/** Per-check string violation counts across all type-374 events in 30d pool. */
 function postureCheckTypeCounts30d(audItems) {
     var counts = Object.create(null);
     (audItems || []).forEach(function(item) {
-        if (auditTypeToNum(item) !== 390) return;
+        if (auditTypeToNum(item) !== 374) return;
         var d = parseAuditDetails(item);
-        if (!d || !Array.isArray(d.postureCheckTypes)) return;
-        d.postureCheckTypes.forEach(function(ct) {
-            counts[ct] = (counts[ct] || 0) + 1;
+        if (!d || !Array.isArray(d.failedChecks)) return;
+        d.failedChecks.forEach(function(fc) {
+            if (!Array.isArray(fc.checks)) return;
+            fc.checks.forEach(function(c) {
+                var k = String(c);
+                counts[k] = (counts[k] || 0) + 1;
+            });
         });
     });
     return counts;
 }
 
 /**
- * Per-user open violation count using latest-event-wins per (userId, checkType) in last 30 days.
- * Returns [{userId, userName, count}] sorted desc by count, capped to top 8.
+ * Per-user distinct failing check count from type-374 events in last 30 days.
+ * Returns [{userId, userName, count}] sorted desc by count, for the Top Users widget.
  */
 function postureTopViolatingUsers30d(audItems) {
     var cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    var latestByKey = Object.create(null);
-    var userNames   = Object.create(null);
+    var userMap = Object.create(null);   // userId (or name) → { userId, userName, checkSet }
 
     (audItems || []).forEach(function(item) {
-        var t = auditTypeToNum(item);
-        if (t !== 390 && t !== 391) return;
+        if (auditTypeToNum(item) !== 374) return;
         var ts = getAuditItemTs(item);
         if (ts == null || ts < cutoff) return;
         var d = parseAuditDetails(item);
         if (!d) return;
-        var userId = d.userId || item.reportedObjectId || '';
-        if (!userId) return;
-        var uName  = d.userName || userId;
-        userNames[userId] = uName;
-        var checks = Array.isArray(d.postureCheckTypes) ? d.postureCheckTypes : [0];
-        checks.forEach(function(ct) {
-            var key = userId + ':' + ct;
-            if (!latestByKey[key] || ts > latestByKey[key].ts) {
-                latestByKey[key] = { ts: ts, type: t, userId: userId };
-            }
-        });
-    });
-
-    var userCounts = Object.create(null);
-    Object.keys(latestByKey).forEach(function(k) {
-        var e = latestByKey[k];
-        if (e.type === 390) {
-            userCounts[e.userId] = (userCounts[e.userId] || 0) + 1;
+        var userId = (item.performedBy && item.performedBy.id) ? String(item.performedBy.id) : '';
+        var uName  = d.user || (item.performedBy && item.performedBy.name) || userId;
+        if (!userId && !uName) return;
+        var key = userId || uName;
+        if (!userMap[key]) userMap[key] = { userId: userId, userName: uName, checkSet: Object.create(null) };
+        if (Array.isArray(d.failedChecks)) {
+            d.failedChecks.forEach(function(fc) {
+                if (Array.isArray(fc.checks)) {
+                    fc.checks.forEach(function(c) {
+                        userMap[key].checkSet[String(c)] = true;
+                    });
+                }
+            });
         }
     });
 
-    return Object.keys(userCounts)
-        .map(function(uid) {
-            return { userId: uid, userName: userNames[uid] || uid || '\u2014', count: userCounts[uid] };
+    return Object.keys(userMap)
+        .map(function(key) {
+            var u = userMap[key];
+            return { userId: u.userId, userName: u.userName, count: Object.keys(u.checkSet).length };
         })
+        .filter(function(u) { return u.count > 0; })
         .sort(function(a, b) { return b.count - a.count || a.userName.localeCompare(b.userName); });
 }
 
@@ -3231,13 +3243,10 @@ function customRichTooltip(context) {
     var insightsHtml = '';
     if (ttMode === 'posture_audit' && znAuditActivityPostureDailyInsights && dateLabel) {
         var insPost = znAuditActivityPostureDailyInsights[dateLabel];
-        if (insPost && (insPost.found > 0 || insPost.resolved > 0 || insPost.adminChanges > 0)) {
-            var net = insPost.found - insPost.resolved;
-            var netStr = net > 0 ? '+' + net + ' net open' : (net < 0 ? net + ' net' : 'balanced');
+        if (insPost && (insPost.found > 0 || insPost.adminChanges > 0)) {
             insightsHtml = '<hr class="zn-rich-tooltip-hr">' +
-                '<div class="zn-rich-tooltip-insight">Net: <strong>' + znRichTooltipEscapeHtml(netStr) + '</strong></div>' +
                 (insPost.topUser !== '\u2014'
-                    ? '<div class="zn-rich-tooltip-insight">Top user: <strong>' + znRichTooltipEscapeHtml(insPost.topUser) + '</strong></div>'
+                    ? '<div class="zn-rich-tooltip-insight">Top device: <strong>' + znRichTooltipEscapeHtml(insPost.topUser) + '</strong></div>'
                     : '') +
                 '<div class="zn-rich-tooltip-insight" style="color:#94a3b8;font-size:0.72rem">Click bar to view events</div>';
         }
@@ -4597,22 +4606,12 @@ function renderActivityExplorerChart(allItems, period) {
         chartType = 'bar';
         datasets = [
             {
-                label: 'Violations Found',
+                label: 'Check Failed',
                 data: timeBuckets.map(function(b) {
-                    return countAuditTypeInBucketRange(poolItems, 390, b.startMs, b.endMs) +
-                           countAuditTypeInBucketRange(poolItems, 374, b.startMs, b.endMs);
+                    return countAuditTypeInBucketRange(poolItems, 374, b.startMs, b.endMs);
                 }),
                 backgroundColor: 'rgba(239,68,68,0.72)',
                 borderColor: '#ef4444',
-                borderWidth: 1
-            },
-            {
-                label: 'Resolved',
-                data: timeBuckets.map(function(b) {
-                    return countAuditTypeInBucketRange(poolItems, 391, b.startMs, b.endMs);
-                }),
-                backgroundColor: 'rgba(0,168,118,0.72)',
-                borderColor: '#00a876',
                 borderWidth: 1
             },
             {
@@ -6854,50 +6853,47 @@ function openInsightsLogicGuideModal() {
     metaEl.style.display = 'none';
     if (modal) modal.classList.add('modal--wide-connectivity');
 
-    var sessionRows = [
+    var allRows = [
         {
             name: 'Sub-optimal Routing',
             sev: 'Medium',
             sevClass: 'insights-logic-sev--medium',
-            logic: 'Active sessions only. Triggered when the session\'s actual region (actualRegion.name) differs from the geo-IP / policy desired region (desiredRegion.name).'
+            logic: 'A user\'s active session is connected through a different region than their closest or policy-assigned one. This can increase latency. Check the user\'s location and region policy assignment.'
         },
         {
             name: 'Legacy Clients',
             sev: 'Medium',
             sevClass: 'insights-logic-sev--medium',
-            logic: 'Active sessions only. Triggered when the client version major number is below 4 (telemetry string parsed after stripping a leading "v").'
+            logic: 'One or more devices are running an outdated version of the Connect client. Upgrading ensures users receive the latest security fixes and performance improvements.'
         },
         {
             name: 'Degraded Asset Health',
             sev: 'Medium',
             sevClass: 'insights-logic-sev--medium',
-            logic: 'Active sessions only. Triggered when connectivityStateAfterReboot is false, 0, or the string "false" — i.e. the asset is not reporting healthy connectivity after reboot.'
+            logic: 'A device did not establish healthy connectivity after its last reboot. The affected user may experience interrupted access. Ask them to restart their device or reinstall the Connect client.'
         },
         {
             name: 'Connection Flapping',
             sev: 'Info',
             sevClass: 'insights-logic-sev--info',
-            logic: 'Uses the paginated audit stream in the selected period. For each user and calendar day, counts Connect session-created events (type 96); flagged when count is greater than 3 (more than 3 reconnects on the same day).'
-        }
-    ];
-
-    var postureRows = [
+            logic: 'A user reconnected more than 3 times in a single day. This usually points to an unstable network, VPN conflict, or a misconfigured client. Review the user\'s network environment.'
+        },
         {
             name: 'Failing Users on Posture Checks',
             sev: 'Medium',
             sevClass: 'insights-logic-sev--medium',
-            logic: 'Counts type-390 (Violation Found) audit events per user over the last 30 days. Flags users with more than 2 violations — those likely being blocked from Connect access and needing admin attention.'
+            logic: 'These users repeatedly failed device compliance checks over the last 30 days, which may be blocking their access to Connect. Review their device posture profile and check for missing compliance requirements.'
         },
         {
             name: 'Posture Violation Spike',
             sev: 'Medium',
             sevClass: 'insights-logic-sev--medium',
-            logic: 'Compares each day\'s violation count to the rolling daily average over 30 days. Triggers when the peak day has \u22653 violations and \u22652\xd7 the average \u2014 signals a policy change, OS update, or misconfiguration.'
+            logic: 'Device compliance failures jumped significantly on a single day compared to the 30-day average. This often follows a policy change, an OS update rollout, or a misconfiguration — review recent changes in your posture profiles.'
         }
     ];
 
     function buildTable(rows) {
-        var thead = '<thead><tr><th style="width:32%">Insight</th><th style="width:11%">Severity</th><th>Detection Logic</th></tr></thead>';
+        var thead = '<thead><tr><th style="width:32%">Insight</th><th style="width:11%">Severity</th><th>What It Means &amp; What To Do</th></tr></thead>';
         var tbody = '<tbody>' + rows.map(function(r) {
             return '<tr>' +
                 '<td class="insights-logic-name">' + escapeHtmlAttr(r.name) + '</td>' +
@@ -6909,12 +6905,9 @@ function openInsightsLogicGuideModal() {
     }
 
     bodyEl.innerHTML =
-        '<div class="insights-logic-subhd" style="margin-top:0">Session Insights</div>' +
-        buildTable(sessionRows) +
-        '<div class="insights-logic-subhd">Posture Insights</div>' +
-        buildTable(postureRows) +
+        buildTable(allRows) +
         '<p style="color:#94a3b8;font-size:0.72rem;margin-top:14px;line-height:1.45">' +
-        'Insight cards show findings from the current data window. A green \u2713 OK badge means no issues were detected for that category.</p>';
+        'Insight cards reflect findings from the current data window. A green \u2713 OK badge means no issues were detected for that category.</p>';
 
     backdrop.classList.add('open');
 }
@@ -7994,12 +7987,20 @@ function fireInsightCardAction(card) {
         var posturePool30dSp = filterByPeriod(filterAuditsByDashboardFilters(aud), '30d');
         var spikeRows = [];
         posturePool30dSp.forEach(function(item) {
-            if (auditTypeToNum(item) !== 390 && auditTypeToNum(item) !== 374) return;
+            if (auditTypeToNum(item) !== 374) return;
             var ts = getAuditItemTs(item);
             if (!ts) return;
             var d = parseAuditDetails(item);
-            var uName = (d && d.userName) || (item.destinationEntitiesList && item.destinationEntitiesList[0] && item.destinationEntitiesList[0].name) || '\u2014';
-            var checks = (d && Array.isArray(d.postureCheckTypes)) ? d.postureCheckTypes.map(postureCheckTypeLabel).join(', ') : '\u2014';
+            var uName = (d && d.user) || (item.performedBy && item.performedBy.name) ||
+                        (item.destinationEntitiesList && item.destinationEntitiesList[0] && item.destinationEntitiesList[0].name) || '\u2014';
+            var checks = '\u2014';
+            if (d && Array.isArray(d.failedChecks)) {
+                var allChecks = [];
+                d.failedChecks.forEach(function(fc) {
+                    if (Array.isArray(fc.checks)) allChecks = allChecks.concat(fc.checks);
+                });
+                if (allChecks.length) checks = allChecks.map(postureCheckTypeLabel).join(', ');
+            }
             spikeRows.push([uName, checks, new Date(ts).toLocaleDateString()]);
         });
         spikeRows.sort(function(a, b) { return b[2].localeCompare(a[2]); });
@@ -8502,7 +8503,8 @@ function renderMcdUsersTab() {
                   }())
                 : '\u2014';
             return '<div class="ses-row ses-row--sessions-drill">' +
-                '<div class="ses-row-user-cell"><span class="ses-status-dot ' + dotCls + '"></span><span class="ses-row-user-name">' + user + '</span></div>' +
+                '<div class="ses-row-user-cell"><span class="ses-status-dot ' + dotCls + '"></span><span class="ses-row-user-name">' + user + '</span>' +
+                '</div>' +
                 '<div class="ses-row-cell">' + asset + '</div>' +
                 '<div class="ses-row-cell">' + country + '</div>' +
                 '<div class="ses-row-cell ses-row-cell--date">' + lastAuthHtml + '</div>' +
@@ -10457,12 +10459,11 @@ function renderPostureAuditDrawerContent() {
     var dayLabel = postureAuditDrawerState.dayLabel;
     var query    = (postureAuditDrawerState.searchQuery || '').toLowerCase().trim();
 
-    var found = 0, resolved = 0, adminCh = 0;
+    var found = 0, adminCh = 0;
     events.forEach(function(ev) {
         var t = auditTypeToNum(ev);
-        if (AUDIT_TYPES_POSTURE_VIOLATIONS[t])    found++;
-        else if (AUDIT_TYPES_POSTURE_RESOLVED[t]) resolved++;
-        else if (AUDIT_TYPES_POSTURE_ADMIN[t])    adminCh++;
+        if (AUDIT_TYPES_POSTURE_VIOLATIONS[t])  found++;
+        else if (AUDIT_TYPES_POSTURE_ADMIN[t])  adminCh++;
     });
 
     var statsEl = document.getElementById('posture-audit-drawer-stats');
@@ -10470,11 +10471,7 @@ function renderPostureAuditDrawerContent() {
         statsEl.innerHTML =
             '<div class="sdw-stat-seg">' +
                 '<span class="sdw-stat-num sdw-stat-num--amber">' + found + '</span>' +
-                '<span class="sdw-stat-label">Violations</span>' +
-            '</div>' +
-            '<div class="sdw-stat-seg">' +
-                '<span class="sdw-stat-num sdw-stat-num--green">' + resolved + '</span>' +
-                '<span class="sdw-stat-label">Resolved</span>' +
+                '<span class="sdw-stat-label">Check Failed</span>' +
             '</div>' +
             '<div class="sdw-stat-seg">' +
                 '<span class="sdw-stat-num">' + adminCh + '</span>' +
@@ -10493,10 +10490,24 @@ function renderPostureAuditDrawerContent() {
         var admin  = (isAdmin && ev.performedBy && ev.performedBy.name) ? String(ev.performedBy.name) : null;
         var d      = parseAuditDetails(ev);
         var device = (d && (d.sourceAsset || d.deviceName || d.asset || d.fqdn || d.hostname || d.assetName)) ? String(d.sourceAsset || d.deviceName || d.asset || d.fqdn || d.hostname || d.assetName) : '\u2014';
-        var checks = (d && Array.isArray(d.postureCheckTypes) && d.postureCheckTypes.length > 0)
-            ? d.postureCheckTypes.map(postureCheckTypeLabel)
-            : [];
-        var profile = (d && (d.profileName || d.name || d.displayName)) ? String(d.profileName || d.name || d.displayName) : '\u2014';
+        var checks = [];
+        if (d) {
+            if (Array.isArray(d.failedChecks) && d.failedChecks.length > 0) {
+                d.failedChecks.forEach(function(fc) {
+                    if (Array.isArray(fc.checks)) checks = checks.concat(fc.checks.map(postureCheckTypeLabel));
+                });
+            } else if (Array.isArray(d.postureCheckTypes) && d.postureCheckTypes.length > 0) {
+                checks = d.postureCheckTypes.map(postureCheckTypeLabel);
+            }
+        }
+        var profile = '\u2014';
+        if (d) {
+            if (Array.isArray(d.failedChecks) && d.failedChecks.length > 0 && d.failedChecks[0].profileName) {
+                profile = String(d.failedChecks[0].profileName);
+            } else if (d.profileName || d.name || d.displayName) {
+                profile = String(d.profileName || d.name || d.displayName);
+            }
+        }
         return { ts: ts, user: user, admin: admin, device: device, type: t, checks: checks, profile: profile };
     });
 
@@ -11139,6 +11150,100 @@ function renderRhaPagination(totalCount, currentPage, totalPages) {
         if (al) al.addEventListener('click', apPagClick(0, 'last'));
     }());
 
+    // ── PV Drawer — search, pagination, row-click, export ─────────────────
+    wireDrawer('pv-drawer-backdrop', 'pv-drawer-close', closePostureViolationDrawer);
+
+    (function wirePvDrawer() {
+        var searchEl = document.getElementById('pv-drawer-search');
+        if (searchEl) {
+            searchEl.addEventListener('input', function() {
+                pvDrawerState.searchQuery = searchEl.value || '';
+                pvDrawerState.currentPage = 1;
+                renderPostureViolationDrawer();
+            });
+        }
+        function pvPagClick(delta, toPage) {
+            return function() {
+                var allRows  = pvDrawerState.allRows || [];
+                var query    = (pvDrawerState.searchQuery || '').toLowerCase().trim();
+                var filtered = query
+                    ? allRows.filter(function(r) {
+                        return r.userName.toLowerCase().indexOf(query) !== -1 ||
+                               r.asset.toLowerCase().indexOf(query) !== -1;
+                      })
+                    : allRows;
+                var totalPages = Math.max(1, Math.ceil(filtered.length / PV_DRAWER_PAGE_SIZE));
+                if (toPage === 'first') pvDrawerState.currentPage = 1;
+                else if (toPage === 'last') pvDrawerState.currentPage = totalPages;
+                else pvDrawerState.currentPage = Math.max(1, Math.min(totalPages, (pvDrawerState.currentPage || 1) + delta));
+                renderPostureViolationDrawer();
+            };
+        }
+        var pf = document.getElementById('pv-pg-first');
+        var pp = document.getElementById('pv-pg-prev');
+        var pn = document.getElementById('pv-pg-next');
+        var pl = document.getElementById('pv-pg-last');
+        if (pf) pf.addEventListener('click', pvPagClick(0, 'first'));
+        if (pp) pp.addEventListener('click', pvPagClick(-1, null));
+        if (pn) pn.addEventListener('click', pvPagClick(+1, null));
+        if (pl) pl.addEventListener('click', pvPagClick(0, 'last'));
+
+        // Sort by Last date
+        var pvSortBtn = document.getElementById('pv-sort-lastdate');
+        if (pvSortBtn) {
+            pvSortBtn.addEventListener('click', function() {
+                if (pvDrawerState.sortCol === 'lastTs') {
+                    pvDrawerState.sortDir = pvDrawerState.sortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    pvDrawerState.sortCol = 'lastTs';
+                    pvDrawerState.sortDir = 'desc';
+                }
+                pvDrawerState.currentPage = 1;
+                renderPostureViolationDrawer();
+            });
+        }
+
+        // Row click → apply global user filter and close
+        var pvListEl = document.getElementById('pv-drawer-list');
+        if (pvListEl && !pvListEl.dataset.znPvDrillWired) {
+            pvListEl.dataset.znPvDrillWired = '1';
+            pvListEl.addEventListener('click', function(e) {
+                var row = e.target.closest('.ses-row--pv-drill[data-user-name]');
+                if (!row || !pvListEl.contains(row)) return;
+                var uname = row.getAttribute('data-user-name');
+                if (!uname || !String(uname).trim()) return;
+                closePostureViolationDrawer();
+                var globalInput = document.getElementById('global-user-input');
+                if (globalInput) {
+                    globalInput.value = uname;
+                    var clearBtn = document.getElementById('clear-user-search');
+                    if (clearBtn) clearBtn.classList.remove('hidden');
+                }
+                applyGlobalUserFilter(uname);
+            });
+        }
+
+        // CSV export
+        var exportBtn = document.getElementById('pv-export-btn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', function() {
+                var rows = (pvDrawerState.allRows || []).map(function(r) {
+                    return [
+                        r.userName,
+                        r.asset,
+                        r.check ? postureCheckTypeLabel(r.check) : '',
+                        r.firstTs ? new Date(r.firstTs).toLocaleDateString() : '',
+                        r.lastTs  ? new Date(r.lastTs).toLocaleDateString()  : ''
+                    ];
+                });
+                var safeName = (pvDrawerState.profileName || 'posture-violations')
+                    .replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+                exportTableToCsv(safeName + '-violations.csv',
+                    ['User', 'Device', 'Failed Posture Check', 'First Seen', 'Last Seen'], rows);
+            });
+        }
+    }());
+
     // ── CSV Export Utility ─────────────────────────────────────────────────
     function exportTableToCsv(filename, headers, rows) {
         var lines = [headers.map(function(h) { return '"' + String(h).replace(/"/g, '""') + '"'; }).join(',')];
@@ -11705,7 +11810,9 @@ var pvDrawerState = {
     profileName: '',
     allRows:     [],
     searchQuery: '',
-    currentPage: 1
+    currentPage: 1,
+    sortCol:     null,   // null | 'lastTs'
+    sortDir:     'desc'  // 'asc' | 'desc'
 };
 
 /**
@@ -11733,6 +11840,197 @@ function extractFailedCheckEntries(audItems) {
         });
     });
     return entries;
+}
+
+// ── PV Drawer — open / close / render ─────────────────────────────────────
+
+function closePostureViolationDrawer() {
+    var bd = document.getElementById('pv-drawer-backdrop');
+    if (bd) bd.classList.remove('is-open');
+}
+
+function openPostureViolationDrawer(profileId) {
+    var bd = document.getElementById('pv-drawer-backdrop');
+    if (!bd) return;
+
+    var profileData = _postureProfileViolations[profileId];
+    if (!profileData) return;
+
+    pvDrawerState.profileId   = profileId;
+    pvDrawerState.profileName = profileData.profileName || profileId;
+    pvDrawerState.currentPage = 1;
+    pvDrawerState.searchQuery = '';
+
+    // Build flat rows: one per user-check combination, sorted by user violation count desc
+    pvDrawerState.allRows = Object.keys(profileData.byUser)
+        .sort(function(a, b) {
+            return (profileData.byUser[b].count || 0) - (profileData.byUser[a].count || 0);
+        })
+        .reduce(function(acc, uname) {
+            var u = profileData.byUser[uname];
+            if (u.checks.length) {
+                u.checks.forEach(function(c) {
+                    var meta = (u.checkMeta || {})[c] || {};
+                    acc.push({
+                        userName:    uname,
+                        asset:       u.asset || '\u2014',
+                        check:       c,
+                        firstTs:     meta.firstTs || u.firstTs || null,
+                        lastTs:      meta.lastTs  || u.lastTs  || null,
+                        profileName: meta.profileName || '',
+                        count:       u.count
+                    });
+                });
+            } else {
+                acc.push({
+                    userName:    uname,
+                    asset:       u.asset || '\u2014',
+                    check:       '',
+                    firstTs:     u.firstTs || null,
+                    lastTs:      u.lastTs  || null,
+                    profileName: '',
+                    count:       u.count
+                });
+            }
+            return acc;
+        }, []);
+
+    // Reset search input
+    var searchEl = document.getElementById('pv-drawer-search');
+    if (searchEl) searchEl.value = '';
+
+    // Title
+    var titleEl = document.getElementById('pv-drawer-title');
+    if (titleEl) {
+        titleEl.textContent = 'Device Posture Profile: \u201c' + pvDrawerState.profileName + '\u201d';
+    }
+
+    renderPostureViolationDrawer();
+    bd.classList.add('is-open');
+    znTrack('drawer_opened', { drawer: 'posture_violation', profileId: profileId });
+}
+
+function renderPostureViolationDrawer() {
+    var query   = (pvDrawerState.searchQuery || '').toLowerCase().trim();
+    var allRows = pvDrawerState.allRows || [];
+
+    var filtered = query
+        ? allRows.filter(function(r) {
+            return r.userName.toLowerCase().indexOf(query) !== -1 ||
+                   r.asset.toLowerCase().indexOf(query) !== -1 ||
+                   postureCheckTypeLabel(r.check).toLowerCase().indexOf(query) !== -1;
+          })
+        : allRows;
+
+    // Apply column sort
+    if (pvDrawerState.sortCol === 'lastTs') {
+        var dir = pvDrawerState.sortDir === 'asc' ? 1 : -1;
+        filtered = filtered.slice().sort(function(a, b) {
+            var av = a.lastTs || 0;
+            var bv = b.lastTs || 0;
+            return av < bv ? -dir : av > bv ? dir : 0;
+        });
+    }
+
+    // Update header arrow to reflect active sort
+    var pvSortBtn = document.getElementById('pv-sort-lastdate');
+    if (pvSortBtn) {
+        var arrowEl = pvSortBtn.querySelector('.sort-arrow');
+        var isActive = pvDrawerState.sortCol === 'lastTs';
+        pvSortBtn.classList.toggle('pv-sort-active', isActive);
+        if (arrowEl) {
+            arrowEl.classList.toggle('sort-arrow--idle', !isActive);
+            arrowEl.innerHTML = isActive && pvDrawerState.sortDir === 'asc' ? '&#9650;' : '&#9660;';
+        }
+    }
+
+    // Stats bar: count unique users + total check-rows
+    var statsEl = document.getElementById('pv-drawer-stats');
+    if (statsEl) {
+        var seenUsers = [];
+        filtered.forEach(function(r) { if (seenUsers.indexOf(r.userName) === -1) seenUsers.push(r.userName); });
+        var uniqueUsers  = seenUsers.length;
+        var totalChecks  = filtered.length;
+        statsEl.innerHTML =
+            '<div class="sdw-stat-seg">' +
+                '<span class="sdw-stat-num sdw-stat-num--amber">' + totalChecks + '</span>' +
+                '<span class="sdw-stat-label">check failures</span>' +
+            '</div>' +
+            '<div class="sdw-stat-seg">' +
+                '<span class="sdw-stat-num">' + uniqueUsers + '</span>' +
+                '<span class="sdw-stat-label">affected users</span>' +
+            '</div>' +
+            '<div class="sdw-stat-seg">' +
+                '<span class="sdw-stat-label pv-period-note">last 30 days</span>' +
+            '</div>';
+    }
+
+    // Pagination
+    var totalPages  = Math.max(1, Math.ceil(filtered.length / PV_DRAWER_PAGE_SIZE));
+    pvDrawerState.currentPage = Math.max(1, Math.min(totalPages, pvDrawerState.currentPage || 1));
+    var page        = pvDrawerState.currentPage;
+    var startIdx    = (page - 1) * PV_DRAWER_PAGE_SIZE;
+    var pageRows    = filtered.slice(startIdx, startIdx + PV_DRAWER_PAGE_SIZE);
+
+    var labelEl  = document.getElementById('pv-pg-label');
+    var totalEl  = document.getElementById('pv-pg-total');
+    var firstBtn = document.getElementById('pv-pg-first');
+    var prevBtn  = document.getElementById('pv-pg-prev');
+    var nextBtn  = document.getElementById('pv-pg-next');
+    var lastBtn  = document.getElementById('pv-pg-last');
+    if (labelEl)  labelEl.textContent  = page + ' of ' + totalPages;
+    if (totalEl)  totalEl.textContent  = 'Total count: ' + filtered.length;
+    var atFirst = page <= 1;
+    var atLast  = page >= totalPages;
+    if (firstBtn) firstBtn.disabled = atFirst;
+    if (prevBtn)  prevBtn.disabled  = atFirst;
+    if (nextBtn)  nextBtn.disabled  = atLast;
+    if (lastBtn)  lastBtn.disabled  = atLast;
+
+    // Rows
+    var listEl = document.getElementById('pv-drawer-list');
+    if (!listEl) return;
+
+    if (!pageRows.length) {
+        listEl.innerHTML =
+            '<div class="ses-empty">' + buildEmptyState(
+                ZN_ICON_SHIELD,
+                query ? 'No matching users' : 'No violations',
+                query ? 'Try a different search term.' : 'No violations found for this profile.'
+            ) + '</div>';
+        return;
+    }
+
+    listEl.innerHTML = pageRows.map(function(r) {
+        var user    = escapeHtmlAttr(r.userName);
+        var device  = escapeHtmlAttr(r.asset);
+        var label   = r.check ? postureCheckTypeLabel(r.check) : '\u2014';
+
+        // Tooltip on check cell: raw error string + profile + last seen
+        var tipParts = r.check ? [r.check] : [];
+        if (r.profileName) tipParts.push('Profile: ' + r.profileName);
+        if (r.lastTs) tipParts.push('Last seen: ' + new Date(r.lastTs).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }));
+
+        var fmtDate = function(ts) {
+            return ts ? new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '\u2014';
+        };
+
+        return '<div class="ses-row ses-row--pv-drill" data-user-name="' + user + '">' +
+            '<div class="ses-row-cell ses-row-user-cell">' +
+                '<span class="ses-row-user-name">' + user + '</span>' +
+            '</div>' +
+            '<div class="ses-row-cell">' +
+                '<span class="ses-row-sub-label">' + device + '</span>' +
+            '</div>' +
+            '<div class="ses-row-cell">' +
+                '<span class="pv-check-text"' + (tipParts.length ? ' title="' + escapeHtmlAttr(tipParts.join('\n')) + '"' : '') + '>' + escapeHtmlAttr(label) + '</span>' +
+            '</div>' +
+            '<div class="ses-row-cell pv-dates-cell">' +
+                '<span class="pv-date-line"><span class="pv-date-line-label">First</span>' + fmtDate(r.firstTs) + '</span>' +
+                '<span class="pv-date-line"><span class="pv-date-line-label">Last</span>' + fmtDate(r.lastTs) + '</span>' +
+            '</div>' +
+        '</div>';
+    }).join('');
 }
 
 function renderPostureViolationsWidget(audItems) {
@@ -11779,13 +12077,26 @@ function renderPostureViolationsWidget(audItems) {
         var p = _postureProfileViolations[e.profileId];
         p.count++;
         if (!p.byUser[e.userName]) {
-            p.byUser[e.userName] = { count: 0, checks: [], asset: e.sourceAsset };
+            p.byUser[e.userName] = {
+                count: 0, checks: [], checkMeta: Object.create(null),
+                asset: e.sourceAsset, firstTs: null, lastTs: null
+            };
         }
         var u = p.byUser[e.userName];
         u.count++;
-        // Collect unique check strings
+        // Track first / last seen timestamps
+        if (e.ts) {
+            if (u.firstTs === null || e.ts < u.firstTs) u.firstTs = e.ts;
+            if (u.lastTs  === null || e.ts > u.lastTs)  u.lastTs  = e.ts;
+        }
+        // Collect unique check strings with per-check metadata
         e.checks.forEach(function(c) {
             if (u.checks.indexOf(c) === -1) u.checks.push(c);
+            if (!u.checkMeta[c]) u.checkMeta[c] = { firstTs: null, lastTs: null, profileName: e.profileName };
+            if (e.ts) {
+                if (u.checkMeta[c].firstTs === null || e.ts < u.checkMeta[c].firstTs) u.checkMeta[c].firstTs = e.ts;
+                if (u.checkMeta[c].lastTs  === null || e.ts > u.checkMeta[c].lastTs)  u.checkMeta[c].lastTs  = e.ts;
+            }
         });
     });
 
@@ -11813,10 +12124,24 @@ function renderPostureViolationsWidget(audItems) {
     }
 
     var maxV = profileEntries[0].count;
+
+    // Build id → profile object map so we can read profile.action for each row
+    var profileById = Object.create(null);
+    (lastData.postureProfiles || []).forEach(function(pr) {
+        if (pr && pr.id) profileById[pr.id] = pr;
+    });
+
     var html = profileEntries.map(function(p) {
         var pct = Math.round((p.count / maxV) * 100);
+        var pr = profileById[p.profileId] || {};
+        var isBlock = pr.action === 'BLOCK';
+        var modeHtml = pr.action
+            ? '<span class="posture-mode-badge posture-mode-badge--' +
+              (isBlock ? 'block' : 'alert') + '">' +
+              (isBlock ? 'Block' : 'Alert only') + '</span>'
+            : '';
         return '<div class="metric-row posture-profile-viol-row" data-posture-profile-id="' + escapeHtmlAttr(p.profileId) + '">' +
-            '<span class="metric-label">' + escapeHtmlAttr(p.profileName) + '</span>' +
+            '<span class="metric-label">' + escapeHtmlAttr(p.profileName) + modeHtml + '</span>' +
             '<div class="metric-bar-wrap"><div class="metric-bar indigo" style="width:' + pct + '%"></div></div>' +
             '<span class="metric-count">' + p.count + '</span>' +
         '</div>';
@@ -11898,43 +12223,41 @@ function renderTopUsersWidget(audItems, mode) {
             var uname = row.dataset.uname;
 
             if (isPosture) {
-                var cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
-                var latestByKey = Object.create(null);
+                var checkSet = Object.create(null); // check string → last seen ts
                 pool.forEach(function(item) {
-                    var t = auditTypeToNum(item);
-                    if (t !== 390 && t !== 391) return;
+                    if (auditTypeToNum(item) !== 374) return;
                     var ts = getAuditItemTs(item);
-                    if (ts == null || ts < cutoff) return;
+                    if (ts == null) return;
                     var d = parseAuditDetails(item);
                     if (!d) return;
-                    var itemUid = d.userId || item.reportedObjectId || '';
-                    if (itemUid !== uid) return;
-                    var checks = Array.isArray(d.postureCheckTypes) ? d.postureCheckTypes : [0];
-                    checks.forEach(function(ct) {
-                        var key = String(ct);
-                        if (!latestByKey[key] || ts > latestByKey[key].ts) {
-                            latestByKey[key] = { ts: ts, type: t, checkType: ct };
-                        }
-                    });
+                    var itemUid  = (item.performedBy && item.performedBy.id) ? String(item.performedBy.id) : '';
+                    var itemName = d.user || (item.performedBy && item.performedBy.name) || '';
+                    if (itemUid !== uid && itemName !== uname) return;
+                    if (Array.isArray(d.failedChecks)) {
+                        d.failedChecks.forEach(function(fc) {
+                            if (Array.isArray(fc.checks)) {
+                                fc.checks.forEach(function(c) {
+                                    var k = String(c);
+                                    if (!checkSet[k] || ts > checkSet[k]) checkSet[k] = ts;
+                                });
+                            }
+                        });
+                    }
                 });
-                var drawerRows = Object.keys(latestByKey)
-                    .filter(function(k) { return latestByKey[k].type === 390; })
-                    .map(function(k) {
-                        var e = latestByKey[k];
-                        return {
-                            'User': uname,
-                            'Failing Check': postureCheckTypeLabel(e.checkType),
-                            'Last Seen': new Date(e.ts).toLocaleDateString()
-                        };
-                    })
-                    .sort(function(a, b) { return a['Failing Check'].localeCompare(b['Failing Check']); });
+                var drawerRows = Object.keys(checkSet).map(function(c) {
+                    return {
+                        'User': uname,
+                        'Failing Check': postureCheckTypeLabel(c),
+                        'Last Seen': new Date(checkSet[c]).toLocaleDateString()
+                    };
+                }).sort(function(a, b) { return a['Failing Check'].localeCompare(b['Failing Check']); });
                 openInsightDrawer(
                     drawerRows,
-                    'Posture Violations \u2014 ' + uname,
+                    'Posture Violations: ' + uname,
                     'Review and remediate the open posture violations for this user. Consider updating the posture profile or excluding this user if violations are expected.',
                     ['User', 'Failing Check', 'Last Seen'],
                     'red',
-                    'Shows the latest open posture violation per check type for this user, using the most recent event to determine whether the check is currently failing.'
+                    'Shows all distinct check failures for this user in the last 30 days, based on Connect posture check failed (type 374) events.'
                 );
             } else {
                 var sessionRows = filterByPeriod(audItems || [], '30d').filter(function(item) {
@@ -12635,3 +12958,1103 @@ if (handleAuthReturn()) {
         }
     });
 }());
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// DNS FIREWALL MODULE — v2.1
+// Profiles (library), Policies (enforcement), Agent config, Assets bulk action
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── HTML escape utility ───────────────────────────────────────────────────
+function znEsc(str) {
+    return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// ── ID generator ──────────────────────────────────────────────────────────
+function znMakeId() {
+    return 'dns_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+}
+
+// ── Page switching ────────────────────────────────────────────────────────
+// context: '' | 'security-engines'  — passed when the portal nav interception
+// knows which section the user navigated from.
+function znSwitchPage(page, context) {
+    var ctx        = context || '';
+    var isSecEng   = (ctx === 'security-engines');
+    var dashMain   = document.getElementById('dashboard-container');
+    var dashHeader = document.getElementById('dashboard-page-header');
+    var searchRow  = dashHeader ? dashHeader.querySelector('.topbar-row--search') : null;
+    var exportBtn  = document.getElementById('export-pdf-btn');
+    var isDash     = (page === 'dashboard');
+
+    if (dashMain)   dashMain.style.display   = isDash ? '' : 'none';
+    if (searchRow)  searchRow.style.display  = isDash ? '' : 'none';
+    if (exportBtn)  exportBtn.style.display  = isDash ? '' : 'none';
+
+    // Hide feedback tab on Security Engines pages
+    var feedbackTab = document.getElementById('feedback-tab-btn');
+    if (feedbackTab) feedbackTab.style.display = isSecEng ? 'none' : '';
+
+    ['dns-protection', 'domain-lookup'].forEach(function (p) {
+        var el = document.getElementById('page-' + p);
+        if (el) el.style.display = (page === p) ? '' : 'none';
+    });
+
+    // Update topbar breadcrumb
+    var bcParent  = dashHeader ? dashHeader.querySelector('.topbar-bc-parent')  : null;
+    var bcCurrent = dashHeader ? dashHeader.querySelector('.topbar-bc-current') : null;
+    if (bcParent && bcCurrent) {
+        if (isDash) {
+            bcParent.innerHTML    = 'Connect <span class="topbar-bc-sep">/</span>';
+            bcCurrent.textContent = 'Dashboard';
+        } else if (isSecEng) {
+            bcParent.innerHTML    = 'Security <span class="topbar-bc-sep">/</span>';
+            bcCurrent.textContent = page === 'dns-protection' ? 'DNS Protection' : 'Domain Lookup';
+        } else {
+            bcParent.innerHTML    = 'DNS Firewall <span class="topbar-bc-sep">/</span>';
+            bcCurrent.textContent = page === 'dns-protection' ? 'DNS Protection' : 'Domain Lookup';
+        }
+    }
+
+    // Keep the internal DNS-page topbar in sync with context
+    var dnsSection = page !== 'dashboard' ? document.getElementById('page-' + page) : null;
+    if (dnsSection) {
+        var dnsBcParent  = dnsSection.querySelector('.dns-page-bc-parent');
+        var dnsBcCurrent = dnsSection.querySelector('.dns-page-bc-current');
+        if (dnsBcParent) {
+            dnsBcParent.innerHTML = isSecEng
+                ? 'Security <span class="dns-page-bc-sep">/</span>'
+                : 'DNS Firewall <span class="dns-page-bc-sep">/</span>';
+        }
+        if (dnsBcCurrent) {
+            dnsBcCurrent.textContent = page === 'dns-protection' ? 'DNS Protection' : 'Domain Lookup';
+        }
+    }
+
+    // Sidebar active state
+    document.querySelectorAll('.sidebar-nav-item').forEach(function (a) {
+        a.classList.toggle('active', a.getAttribute('data-page') === page);
+    });
+
+    // Boot the relevant page on first visit
+    if (page === 'dns-protection') {
+        znRenderDnsPoliciesTable();
+        znRenderDnsProfilesList();
+    }
+    if (page === 'domain-lookup')    znInitDomainLookup();
+}
+
+// ── DNS Protection tab switching ──────────────────────────────────────────
+// tab: 'policy-rules' | 'dns-policy-profiles'
+function znSwitchDnsProtectionTab(tab) {
+    var tabs  = document.querySelectorAll('.dns-protection-tab');
+    var panes = document.querySelectorAll('.dns-protection-tab-pane');
+    var policiesActions = document.getElementById('dns-protection-policies-actions');
+    var profilesActions = document.getElementById('dns-protection-profiles-actions');
+
+    tabs.forEach(function (btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
+    });
+    panes.forEach(function (pane) {
+        pane.style.display = pane.id === 'dns-protection-pane-' + tab ? '' : 'none';
+    });
+
+    if (policiesActions) policiesActions.style.display = tab === 'policy-rules' ? '' : 'none';
+    if (profilesActions) profilesActions.style.display = tab === 'dns-policy-profiles' ? '' : 'none';
+}
+
+// Extend the sidebar — DNS nav items get page switching; other items restore dashboard
+(function () {
+    var aside = document.querySelector('aside');
+    if (!aside) return;
+    aside.addEventListener('click', function (e) {
+        var link = e.target.closest('.sidebar-nav-item[data-page]');
+        if (!link) return;
+        var page = link.getAttribute('data-page') || '';
+        if (page === 'dns-protection' || page === 'domain-lookup') {
+            e.preventDefault();
+            znSwitchPage(page);
+        } else {
+            // If we're on a DNS/tools page, switch back to the dashboard view
+            var onDns = ['dns-protection', 'domain-lookup'].some(function (p) {
+                var el = document.getElementById('page-' + p);
+                return el && el.style.display !== 'none';
+            });
+            if (onDns) znSwitchPage('dashboard');
+        }
+    });
+
+    // Tab bar clicks inside the DNS Protection page
+    var protectionSection = document.getElementById('page-dns-protection');
+    if (protectionSection) {
+        protectionSection.addEventListener('click', function (e) {
+            var tab = e.target.closest('.dns-protection-tab');
+            if (!tab) return;
+            znSwitchDnsProtectionTab(tab.getAttribute('data-tab'));
+        });
+    }
+}());
+
+// ── Storage helpers ───────────────────────────────────────────────────────
+var _znDnsProfilesCache = null;
+var _znDnsPoliciesCache = null;
+
+function znLoadDnsProfiles(cb) {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(['dnsProfiles'], function (res) {
+            _znDnsProfilesCache = res.dnsProfiles || [];
+            cb(_znDnsProfilesCache);
+        });
+    } else {
+        try { _znDnsProfilesCache = JSON.parse(localStorage.getItem('dnsProfiles') || '[]'); } catch (_) { _znDnsProfilesCache = []; }
+        cb(_znDnsProfilesCache);
+    }
+}
+
+function znSaveDnsProfiles(profiles, cb) {
+    _znDnsProfilesCache = profiles;
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ dnsProfiles: profiles }, function () { if (cb) cb(); });
+    } else {
+        localStorage.setItem('dnsProfiles', JSON.stringify(profiles));
+        if (cb) cb();
+    }
+}
+
+function znLoadDnsPolicies(cb) {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(['dnsPolicies'], function (res) {
+            _znDnsPoliciesCache = res.dnsPolicies || [];
+            cb(_znDnsPoliciesCache);
+        });
+    } else {
+        try { _znDnsPoliciesCache = JSON.parse(localStorage.getItem('dnsPolicies') || '[]'); } catch (_) { _znDnsPoliciesCache = []; }
+        cb(_znDnsPoliciesCache);
+    }
+}
+
+function znSaveDnsPolicies(policies, cb) {
+    _znDnsPoliciesCache = policies;
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ dnsPolicies: policies }, function () { if (cb) cb(); });
+    } else {
+        localStorage.setItem('dnsPolicies', JSON.stringify(policies));
+        if (cb) cb();
+    }
+}
+
+// ── DNS Profiles list ─────────────────────────────────────────────────────
+function znRenderDnsProfilesList() {
+    znLoadDnsProfiles(function (profiles) {
+        znLoadDnsPolicies(function (policies) {
+            var tbody = document.getElementById('dns-profiles-tbody');
+            if (!tbody) return;
+
+            if (!profiles.length) {
+                tbody.innerHTML =
+                    '<tr><td colspan="5" class="dns-empty-cell">' +
+                    '<div class="dns-empty-state">' +
+                    '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>' +
+                    '<p>No DNS profiles yet.</p>' +
+                    '<button class="dns-btn dns-btn-primary" onclick="znOpenProfileEditor()">Create your first profile</button>' +
+                    '</div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = profiles.map(function (p) {
+                var usage   = policies.filter(function (pol) { return pol.profileId === p.id; }).length;
+                var active  = p.status !== 'inactive';
+                var badge   = active
+                    ? '<span class="dns-badge dns-badge-active">Active</span>'
+                    : '<span class="dns-badge dns-badge-inactive">Inactive</span>';
+                var updated = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : '—';
+                return '<tr class="dns-tr">' +
+                    '<td class="dns-td dns-td-name"><span class="dns-profile-name">' + znEsc(p.name) + '</span></td>' +
+                    '<td class="dns-td">' + badge + '</td>' +
+                    '<td class="dns-td"><span class="dns-usage-chip">' + usage + ' ' + (usage === 1 ? 'policy' : 'policies') + '</span></td>' +
+                    '<td class="dns-td dns-td-date">' + znEsc(updated) + '</td>' +
+                    '<td class="dns-td dns-td-actions">' +
+                    '<button class="dns-action-btn dns-action-edit" data-action="edit-profile" data-id="' + znEsc(p.id) + '" title="Edit profile">&#9998;</button>' +
+                    '<button class="dns-action-btn dns-action-delete" data-action="delete-profile" data-id="' + znEsc(p.id) + '" title="Delete profile">&#10005;</button>' +
+                    '</td></tr>';
+            }).join('');
+        });
+    });
+}
+
+// ── Profile Editor pane ───────────────────────────────────────────────────
+var _pepEditingId  = null;
+var _pepAllowlist  = [];
+var _pepBlocklist  = [];
+var _pepCsvTarget  = null;
+
+function znOpenProfileEditor(profileId) {
+    var backdrop = document.getElementById('pep-backdrop');
+    if (!backdrop) return;
+    _pepEditingId = profileId || null;
+    _pepAllowlist = [];
+    _pepBlocklist = [];
+
+    if (profileId) {
+        znLoadDnsProfiles(function (profiles) {
+            var p = profiles.find(function (x) { return x.id === profileId; });
+            if (!p) return;
+            znPopulateProfileEditor(p);
+            var titleEl = document.getElementById('pep-title');
+            if (titleEl) titleEl.textContent = 'Edit DNS Profile';
+            backdrop.removeAttribute('aria-hidden');
+            backdrop.classList.add('is-open');
+        });
+    } else {
+        znResetProfileEditor();
+        var titleEl = document.getElementById('pep-title');
+        if (titleEl) titleEl.textContent = 'New DNS Profile';
+        backdrop.removeAttribute('aria-hidden');
+        backdrop.classList.add('is-open');
+    }
+}
+
+function znCloseProfileEditor() {
+    var backdrop = document.getElementById('pep-backdrop');
+    if (backdrop) { backdrop.classList.remove('is-open'); backdrop.setAttribute('aria-hidden', 'true'); }
+    var pre = document.getElementById('pep-agent-config-pre');
+    if (pre) pre.style.display = 'none';
+    var toggle = document.getElementById('pep-agent-config-toggle');
+    if (toggle) { var sv = toggle.querySelector('svg'); if (sv) sv.style.transform = ''; }
+}
+
+function znResetProfileEditor() {
+    var ni = document.getElementById('pep-name-input');
+    if (ni) ni.value = '';
+
+    document.querySelectorAll('.pep-action-selector').forEach(function (sel) {
+        sel.querySelectorAll('.pep-action-btn').forEach(function (btn) {
+            btn.classList.toggle('is-active', btn.getAttribute('data-action') === 'allow');
+        });
+    });
+
+    ['gambling', 'adultContent', 'socialMedia', 'streaming'].forEach(function (k) {
+        var s = document.getElementById('pep-cf-' + k);
+        if (s) s.value = 'allow';
+    });
+
+    _pepAllowlist = []; _pepBlocklist = [];
+    znRenderDomainTable('allowlist');
+    znRenderDomainTable('blocklist');
+}
+
+function znPopulateProfileEditor(p) {
+    var ni = document.getElementById('pep-name-input');
+    if (ni) ni.value = p.name || '';
+
+    var sp = p.securityPosture || {};
+    ['maliciousPhishing', 'c2Shield'].forEach(function (key) {
+        var sel = document.querySelector('.pep-action-selector[data-posture-key="' + key + '"]');
+        if (!sel) return;
+        var val = sp[key] || 'allow';
+        sel.querySelectorAll('.pep-action-btn').forEach(function (btn) {
+            btn.classList.toggle('is-active', btn.getAttribute('data-action') === val);
+        });
+    });
+
+    var cf = p.contentFiltering || {};
+    ['gambling', 'adultContent', 'socialMedia', 'streaming'].forEach(function (k) {
+        var s = document.getElementById('pep-cf-' + k);
+        if (s) s.value = cf[k] || 'allow';
+    });
+
+    var ov = p.customOverrides || {};
+    _pepAllowlist = (ov.allowlist || []).slice();
+    _pepBlocklist = (ov.blocklist || []).slice();
+    znRenderDomainTable('allowlist');
+    znRenderDomainTable('blocklist');
+}
+
+function znGetProfileEditorValues() {
+    var name = ((document.getElementById('pep-name-input') || {}).value || '').trim();
+
+    function activeAction(postureKey) {
+        var sel = document.querySelector('.pep-action-selector[data-posture-key="' + postureKey + '"]');
+        if (!sel) return 'allow';
+        var btn = sel.querySelector('.pep-action-btn.is-active');
+        return btn ? btn.getAttribute('data-action') : 'allow';
+    }
+
+    var cf = {};
+    ['gambling', 'adultContent', 'socialMedia', 'streaming'].forEach(function (k) {
+        var s = document.getElementById('pep-cf-' + k);
+        cf[k] = s ? s.value : 'allow';
+    });
+
+    return {
+        name: name,
+        securityPosture: { maliciousPhishing: activeAction('maliciousPhishing'), c2Shield: activeAction('c2Shield') },
+        contentFiltering: cf,
+        customOverrides: { allowlist: _pepAllowlist.slice(), blocklist: _pepBlocklist.slice() }
+    };
+}
+
+function znSaveProfileEditor() {
+    var vals = znGetProfileEditorValues();
+    if (!vals.name) { alert('Please enter a profile name.'); return; }
+
+    znLoadDnsProfiles(function (profiles) {
+        var now = new Date().toISOString();
+        if (_pepEditingId) {
+            profiles = profiles.map(function (p) {
+                return p.id === _pepEditingId ? Object.assign({}, p, vals, { updatedAt: now }) : p;
+            });
+        } else {
+            profiles.push(Object.assign({ id: znMakeId(), status: 'active', createdAt: now, updatedAt: now }, vals));
+        }
+        znSaveDnsProfiles(profiles, function () {
+            znCloseProfileEditor();
+            znRenderDnsProfilesList();
+        });
+    });
+}
+
+// ── Domain table (Zone C) ─────────────────────────────────────────────────
+function znRenderDomainTable(listType) {
+    var list    = listType === 'allowlist' ? _pepAllowlist : _pepBlocklist;
+    var tableEl = document.getElementById('pep-' + listType + '-table');
+    var countEl = document.getElementById('pep-' + listType + '-count');
+    if (!tableEl) return;
+
+    tableEl.innerHTML = list.length
+        ? list.map(function (domain, i) {
+            return '<div class="pep-domain-row">' +
+                '<span class="pep-domain-text">' + znEsc(domain) + '</span>' +
+                '<button type="button" class="pep-domain-delete" data-list="' + listType + '" data-idx="' + i + '" title="Remove">&#10005;</button>' +
+                '</div>';
+          }).join('')
+        : '<div class="pep-domain-empty">No domains added</div>';
+
+    if (countEl) countEl.textContent = list.length + ' domain' + (list.length !== 1 ? 's' : '') + (list.length >= 1000 ? ' (limit reached)' : '');
+}
+
+// ── Domain validation ─────────────────────────────────────────────────────
+function znValidateDomain(d) {
+    return /^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/.test(d);
+}
+
+function znAddDomainRow(listType) {
+    var list = listType === 'allowlist' ? _pepAllowlist : _pepBlocklist;
+    if (list.length >= 1000) { alert('Maximum of 1,000 domains per list reached.'); return; }
+    var domain = prompt('Enter domain (e.g. example.com):');
+    if (!domain) return;
+    domain = domain.trim().toLowerCase();
+    if (!znValidateDomain(domain)) { alert('Invalid domain format. Use: domain.com'); return; }
+    if (list.indexOf(domain) !== -1) { alert('Domain already in list.'); return; }
+    if (listType === 'allowlist') _pepAllowlist.push(domain);
+    else _pepBlocklist.push(domain);
+    znRenderDomainTable(listType);
+}
+
+function znHandleCsvImport(listType, file) {
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        var lines   = e.target.result.split(/[\r\n,;]+/).map(function (l) { return l.trim().toLowerCase(); }).filter(Boolean);
+        var valid   = [], invalid = 0;
+        var list    = listType === 'allowlist' ? _pepAllowlist : _pepBlocklist;
+        lines.forEach(function (d) {
+            if (znValidateDomain(d)) {
+                if (list.indexOf(d) === -1 && valid.indexOf(d) === -1) valid.push(d);
+            } else if (d) { invalid++; }
+        });
+        var available = 1000 - list.length;
+        var toAdd = valid.slice(0, available);
+        if (listType === 'allowlist') _pepAllowlist = _pepAllowlist.concat(toAdd);
+        else _pepBlocklist = _pepBlocklist.concat(toAdd);
+        znRenderDomainTable(listType);
+
+        var msg = 'Imported ' + toAdd.length + ' domain(s).';
+        if (valid.length > available) msg += ' ' + (valid.length - available) + ' skipped (1,000 limit).';
+        if (invalid) msg += ' ' + invalid + ' invalid domain(s) rejected.';
+        alert(msg);
+    };
+    reader.readAsText(file);
+}
+
+// ── Agent config generator ────────────────────────────────────────────────
+function znGenerateAgentInstructions(profile) {
+    if (!profile) return null;
+    var sp = profile.securityPosture || {};
+    return {
+        profileId:   profile.id,
+        profileName: profile.name,
+        rootCertificate: { action: 'install_root_cert', target: 'system_trust_store', autoInstall: true },
+        sinkholeRedirect: {
+            enabled:            sp.maliciousPhishing === 'sinkhole' || sp.c2Shield === 'sinkhole',
+            sinkholeIp:         '100.64.0.1',
+            brandedLandingPage: true
+        },
+        notifications: {
+            notifyOnBlock: true,
+            template:      'Access to {domain} was blocked by Zero DNS Policy',
+            platforms:     ['windows', 'macos']
+        },
+        heartbeat:             { intervalSec: 60, websocketFallback: true },
+        contentFilteringRules: profile.contentFiltering || {},
+        customOverrides:       profile.customOverrides  || { allowlist: [], blocklist: [] },
+        generatedAt:           new Date().toISOString()
+    };
+}
+
+// ── DNS Policies rulebase ─────────────────────────────────────────────────
+function znRenderDnsPoliciesTable() {
+    // #region agent log
+    fetch('http://127.0.0.1:7347/ingest/5749d71a-6720-4a52-aee8-bb5289849b5c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'462fd4'},body:JSON.stringify({sessionId:'462fd4',location:'dashboard-logic.js:znRenderDnsPoliciesTable-entry',message:'DNS policies table render: checking loaded stylesheets',data:{sheets:[...document.styleSheets].map(function(s){return{href:s.href,rules:s.cssRules?s.cssRules.length:'n/a'};})},timestamp:Date.now(),hypothesisId:'H-D'})}).catch(function(){});
+    // #endregion
+    znLoadDnsPolicies(function (policies) {
+        znLoadDnsProfiles(function (profiles) {
+            var tbody = document.getElementById('dns-policies-tbody');
+            if (!tbody) return;
+
+            var sorted = policies.slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+
+            if (!sorted.length) {
+                tbody.innerHTML =
+                    '<tr><td colspan="8" class="dns-empty-cell">' +
+                    '<div class="dns-empty-state">' +
+                    '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>' +
+                    '<p>No DNS policies yet.</p>' +
+                    '<button class="dns-btn dns-btn-primary" onclick="znOpenPolicyEditor()">Create your first policy</button>' +
+                    '</div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = sorted.map(function (pol, idx) {
+                var profile     = profiles.find(function (p) { return p.id === pol.profileId; });
+                var profileName = profile ? '<span class="dns-profile-chip">' + znEsc(profile.name) + '</span>' : '<span class="dns-td-muted">—</span>';
+                var assets      = (pol.assets || []).length ? '<span class="dns-asset-chip">' + znEsc(pol.assets.slice(0, 2).join(', ')) + (pol.assets.length > 2 ? ' +' + (pol.assets.length - 2) : '') + '</span>' : '<span class="dns-td-muted">All assets</span>';
+                var users       = (pol.users  || []).length ? '<span class="dns-user-chip">'  + znEsc(pol.users.slice(0, 2).join(', '))  + (pol.users.length  > 2 ? ' +' + (pol.users.length  - 2) : '') + '</span>' : '<span class="dns-td-muted">All users</span>';
+                var isActive    = pol.status !== 'inactive';
+                var toggle      = '<label class="dns-toggle-label dns-toggle-sm" title="' + (isActive ? 'Active' : 'Inactive') + '">' +
+                    '<input type="checkbox" class="dns-toggle-input dns-policy-status-toggle" data-policy-id="' + znEsc(pol.id) + '"' + (isActive ? ' checked' : '') + '>' +
+                    '<span class="dns-toggle-track"><span class="dns-toggle-thumb"></span></span>' +
+                    '</label>';
+
+                return '<tr class="dns-tr dns-policy-row" draggable="true" data-policy-id="' + znEsc(pol.id) + '">' +
+                    '<td class="dns-td dns-td-drag"><span class="dns-drag-handle" title="Drag to reorder">&#8801;</span></td>' +
+                    '<td class="dns-td dns-td-order">' + (idx + 1) + '</td>' +
+                    '<td class="dns-td dns-td-name"><span class="dns-policy-name">' + znEsc(pol.name) + '</span></td>' +
+                    '<td class="dns-td">' + assets + '</td>' +
+                    '<td class="dns-td">' + users + '</td>' +
+                    '<td class="dns-td">' + profileName + '</td>' +
+                    '<td class="dns-td dns-td-status">' + toggle + '</td>' +
+                    '<td class="dns-td dns-td-actions">' +
+                    '<button class="dns-action-btn dns-action-edit"   data-action="edit-policy"   data-id="' + znEsc(pol.id) + '" title="Edit">&#9998;</button>' +
+                    '<button class="dns-action-btn dns-action-delete" data-action="delete-policy" data-id="' + znEsc(pol.id) + '" title="Delete">&#10005;</button>' +
+                    '</td></tr>';
+            }).join('');
+
+            znWirePoliciesDragDrop();
+
+            // #region agent log
+            setTimeout(function() {
+                var tbl = document.getElementById('dns-policies-table');
+                var th = tbl ? tbl.querySelector('thead th') : null;
+                var td = tbl ? tbl.querySelector('tbody .dns-td') : null;
+                var tdName = tbl ? tbl.querySelector('tbody .dns-td-name') : null;
+                var cs = window.getComputedStyle;
+                fetch('http://127.0.0.1:7347/ingest/5749d71a-6720-4a52-aee8-bb5289849b5c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'462fd4'},body:JSON.stringify({sessionId:'462fd4',location:'dashboard-logic.js:znRenderDnsPoliciesTable-after-render',message:'DNS policies table computed styles',data:{tableFound:!!tbl,thFound:!!th,tdFound:!!td,th_bg:th?cs(th).backgroundColor:'n/a',th_padding:th?cs(th).padding:'n/a',th_fontSize:th?cs(th).fontSize:'n/a',th_fontWeight:th?cs(th).fontWeight:'n/a',th_color:th?cs(th).color:'n/a',th_textTransform:th?cs(th).textTransform:'n/a',td_padding:td?cs(td).padding:'n/a',td_color:td?cs(td).color:'n/a',td_borderBottom:td?cs(td).borderBottom:'n/a',tdName_fontWeight:tdName?cs(tdName).fontWeight:'n/a',tdName_color:tdName?cs(tdName).color:'n/a'},timestamp:Date.now(),hypothesisId:'H-A-B-C'})}).catch(function(){});
+            }, 300);
+            // #endregion
+        });
+    });
+}
+
+// ── Drag-and-drop ─────────────────────────────────────────────────────────
+var _znDragSrcRow = null;
+
+function znWirePoliciesDragDrop() {
+    var tbody = document.getElementById('dns-policies-tbody');
+    if (!tbody) return;
+
+    tbody.querySelectorAll('.dns-policy-row').forEach(function (row) {
+        row.addEventListener('dragstart', function (e) {
+            _znDragSrcRow = row;
+            row.classList.add('dns-row-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', row.getAttribute('data-policy-id'));
+        });
+        row.addEventListener('dragend', function () {
+            row.classList.remove('dns-row-dragging');
+            tbody.querySelectorAll('.dns-row-drag-over').forEach(function (r) { r.classList.remove('dns-row-drag-over'); });
+        });
+        row.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (row !== _znDragSrcRow) {
+                tbody.querySelectorAll('.dns-row-drag-over').forEach(function (r) { r.classList.remove('dns-row-drag-over'); });
+                row.classList.add('dns-row-drag-over');
+            }
+        });
+        row.addEventListener('drop', function (e) {
+            e.preventDefault();
+            if (!_znDragSrcRow || _znDragSrcRow === row) return;
+            var rows   = Array.from(tbody.querySelectorAll('.dns-policy-row'));
+            var srcIdx = rows.indexOf(_znDragSrcRow);
+            var dstIdx = rows.indexOf(row);
+            if (srcIdx < dstIdx) tbody.insertBefore(_znDragSrcRow, row.nextSibling);
+            else                 tbody.insertBefore(_znDragSrcRow, row);
+
+            // Persist new order
+            var newOrder = Array.from(tbody.querySelectorAll('.dns-policy-row')).map(function (r, i) {
+                return { id: r.getAttribute('data-policy-id'), order: i };
+            });
+            znLoadDnsPolicies(function (policies) {
+                policies.forEach(function (p) {
+                    var e2 = newOrder.find(function (x) { return x.id === p.id; });
+                    if (e2) p.order = e2.order;
+                });
+                znSaveDnsPolicies(policies, function () {
+                    // Refresh rank numbers in-place
+                    Array.from(tbody.querySelectorAll('.dns-policy-row')).forEach(function (r, i) {
+                        var oc = r.querySelector('.dns-td-order');
+                        if (oc) oc.textContent = i + 1;
+                    });
+                });
+            });
+            row.classList.remove('dns-row-drag-over');
+        });
+    });
+}
+
+// ── Policy Editor modal ───────────────────────────────────────────────────
+var _dpmEditingId = null;
+
+function znOpenPolicyEditor(policyId, prefilledAssets) {
+    var backdrop = document.getElementById('dns-policy-modal-backdrop');
+    if (!backdrop) return;
+    _dpmEditingId = policyId || null;
+
+    znLoadDnsProfiles(function (profiles) {
+        var sel = document.getElementById('dpm-profile');
+        if (sel) {
+            sel.innerHTML = '<option value="">-- Select a profile --</option>' +
+                profiles.filter(function (p) { return p.status !== 'inactive'; })
+                    .map(function (p) { return '<option value="' + znEsc(p.id) + '">' + znEsc(p.name) + '</option>'; })
+                    .join('');
+        }
+
+        function openModal() {
+            backdrop.removeAttribute('aria-hidden');
+            backdrop.classList.add('open');
+        }
+
+        if (policyId) {
+            znLoadDnsPolicies(function (policies) {
+                var pol = policies.find(function (x) { return x.id === policyId; });
+                if (!pol) return;
+                var titleEl = document.getElementById('dns-policy-modal-title');
+                if (titleEl) titleEl.textContent = 'Edit DNS Policy';
+                var ni = document.getElementById('dpm-name');    if (ni) ni.value = pol.name || '';
+                if (sel) sel.value = pol.profileId || '';
+                var stEl = document.getElementById('dpm-status');
+                if (stEl) stEl.checked = pol.status !== 'inactive';
+                znUpdateDpmStatusText();
+                znSetDpmField('assets', pol.assets || []);
+                znSetDpmField('users',  pol.users  || []);
+                openModal();
+            });
+        } else {
+            var titleEl = document.getElementById('dns-policy-modal-title');
+            if (titleEl) titleEl.textContent = 'New DNS Policy';
+            var ni = document.getElementById('dpm-name'); if (ni) ni.value = '';
+            if (sel) sel.value = '';
+            var stEl = document.getElementById('dpm-status'); if (stEl) stEl.checked = true;
+            znUpdateDpmStatusText();
+            znSetDpmField('assets', prefilledAssets || []);
+            znSetDpmField('users',  []);
+            openModal();
+        }
+    });
+}
+
+function znSetDpmField(field, values) {
+    var disp = document.getElementById('dpm-' + field + '-display');
+    var hid  = document.getElementById('dpm-' + field);
+    if (hid) hid.value = JSON.stringify(values);
+    if (disp) disp.textContent = values.length ? values.slice(0, 3).join(', ') + (values.length > 3 ? ' +' + (values.length - 3) : '') : (field === 'assets' ? 'All assets' : 'All users');
+}
+
+function znUpdateDpmStatusText() {
+    var stEl = document.getElementById('dpm-status');
+    var tx   = document.getElementById('dpm-status-text');
+    if (stEl && tx) tx.textContent = stEl.checked ? 'Active' : 'Inactive';
+}
+
+function znClosePolicyEditor() {
+    var b = document.getElementById('dns-policy-modal-backdrop');
+    if (b) { b.classList.remove('open'); b.setAttribute('aria-hidden', 'true'); }
+}
+
+function znSavePolicyEditor() {
+    var name      = ((document.getElementById('dpm-name')    || {}).value || '').trim();
+    var profileId = (document.getElementById('dpm-profile')  || {}).value || '';
+    if (!name)      { alert('Please enter a policy name.'); return; }
+    if (!profileId) { alert('Please select an assigned profile.'); return; }
+
+    var stEl   = document.getElementById('dpm-status');
+    var status = (stEl && stEl.checked) ? 'active' : 'inactive';
+
+    function parseHid(id) { try { return JSON.parse((document.getElementById(id)||{}).value||'[]'); } catch(_){return[];} }
+    var assets = parseHid('dpm-assets');
+    var users  = parseHid('dpm-users');
+
+    znLoadDnsPolicies(function (policies) {
+        var now = new Date().toISOString();
+        if (_dpmEditingId) {
+            policies = policies.map(function (p) {
+                return p.id === _dpmEditingId
+                    ? Object.assign({}, p, { name: name, profileId: profileId, assets: assets, users: users, status: status, updatedAt: now })
+                    : p;
+            });
+        } else {
+            var maxOrd = policies.reduce(function (m, p) { return Math.max(m, p.order || 0); }, -1);
+            policies.push({ id: znMakeId(), name: name, profileId: profileId, assets: assets, users: users, status: status, order: maxOrd + 1, createdAt: now, updatedAt: now });
+        }
+        znSaveDnsPolicies(policies, function () {
+            znClosePolicyEditor();
+            znRenderDnsPoliciesTable();
+        });
+    });
+}
+
+// ── DNS Firewall bulk-action modal ────────────────────────────────────────
+var _znFwAssetIds    = [];
+var _znFwActiveTab   = 'apply';
+
+function znOpenDnsFirewallModal(assetIds) {
+    _znFwAssetIds  = assetIds || [];
+    _znFwActiveTab = 'apply';
+    var backdrop = document.getElementById('dns-fw-modal-backdrop');
+    if (!backdrop) return;
+
+    var sub = document.getElementById('dns-fw-modal-subtitle');
+    if (sub) sub.textContent = _znFwAssetIds.length
+        ? 'Assign a DNS Profile to ' + _znFwAssetIds.length + ' selected asset(s).'
+        : 'Assign a DNS Profile to the selected asset(s).';
+
+    znSwitchDnsFwTab('apply');
+
+    znLoadDnsProfiles(function (profiles) {
+        var sel = document.getElementById('dns-fw-profile-select');
+        if (sel) {
+            sel.innerHTML = '<option value="">-- Select a profile --</option>' +
+                profiles.filter(function (p) { return p.status !== 'inactive'; })
+                    .map(function (p) { return '<option value="' + znEsc(p.id) + '">' + znEsc(p.name) + '</option>'; })
+                    .join('');
+        }
+    });
+
+    var hid = document.getElementById('dns-fw-asset-ids');
+    if (hid) hid.value = JSON.stringify(_znFwAssetIds);
+    backdrop.removeAttribute('aria-hidden');
+    backdrop.classList.add('open');
+}
+
+function znCloseDnsFirewallModal() {
+    var b = document.getElementById('dns-fw-modal-backdrop');
+    if (b) { b.classList.remove('open'); b.setAttribute('aria-hidden', 'true'); }
+}
+
+function znSwitchDnsFwTab(tab) {
+    _znFwActiveTab = tab;
+    document.querySelectorAll('.dns-fw-tab').forEach(function (btn) {
+        btn.classList.toggle('is-active', btn.getAttribute('data-tab') === tab);
+    });
+    var ap = document.getElementById('dns-fw-tab-apply');
+    var cr = document.getElementById('dns-fw-tab-create');
+    if (ap) ap.style.display = tab === 'apply'  ? '' : 'none';
+    if (cr) cr.style.display = tab === 'create' ? '' : 'none';
+    var confirmBtn = document.getElementById('dns-fw-confirm');
+    if (confirmBtn) confirmBtn.textContent = tab === 'apply' ? 'Apply Profile' : 'Create Profile';
+}
+
+function znConfirmDnsFirewall() {
+    if (_znFwActiveTab === 'apply') {
+        var sel = document.getElementById('dns-fw-profile-select');
+        var pid = sel ? sel.value : '';
+        if (!pid) { alert('Please select a profile.'); return; }
+
+        znLoadDnsPolicies(function (policies) {
+            // Push all existing rules down by one
+            policies.forEach(function (p) { p.order = (p.order || 0) + 1; });
+            var now = new Date().toISOString();
+            policies.unshift({
+                id:        znMakeId(),
+                name:      'DNS Policy — ' + (_znFwAssetIds.length ? _znFwAssetIds.slice(0, 2).join(', ') + (_znFwAssetIds.length > 2 ? ' …' : '') : 'All assets'),
+                profileId: pid,
+                assets:    _znFwAssetIds.slice(),
+                users:     [],
+                status:    'active',
+                order:     0,
+                createdAt: now,
+                updatedAt: now
+            });
+            znSaveDnsPolicies(policies, function () {
+                znCloseDnsFirewallModal();
+                znSwitchPage('dns-protection');
+                znSwitchDnsProtectionTab('policy-rules');
+            });
+        });
+    } else {
+        znCloseDnsFirewallModal();
+        znSwitchPage('dns-protection');
+        znSwitchDnsProtectionTab('dns-policy-profiles');
+        setTimeout(function () { znOpenProfileEditor(); }, 80);
+    }
+}
+
+// ── Wire up all DNS event listeners (runs after DOM is parsed) ────────────
+(function znInitDnsFirewall() {
+    // #region agent log
+    (function() {
+        var dnsSection = document.querySelector('.sidebar-dns-section');
+        var dnsLink    = document.querySelector('[data-page="dns-protection"]');
+        var sheets     = [...document.styleSheets].map(function(s){return s.href;});
+        fetch('http://127.0.0.1:7347/ingest/5749d71a-6720-4a52-aee8-bb5289849b5c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'462fd4'},body:JSON.stringify({sessionId:'462fd4',location:'dashboard-logic.js:znInitDnsFirewall',message:'Page init: sidebar DNS section check',data:{dnsSectionFound:!!dnsSection,dnsLinkFound:!!dnsLink,dnsSectionDisplay:dnsSection?getComputedStyle(dnsSection).display:'n/a',dnsLinkDisplay:dnsLink?getComputedStyle(dnsLink).display:'n/a',stylesheets:sheets,url:location.href},timestamp:Date.now(),hypothesisId:'H-C-D-E'})}).catch(function(){});
+    })();
+    // #endregion
+    // ── Profile editor ──
+    var pepClose  = document.getElementById('pep-close-btn');
+    var pepCancel = document.getElementById('pep-cancel-btn');
+    var pepSave   = document.getElementById('pep-save-btn');
+    var pepBd     = document.getElementById('pep-backdrop');
+    if (pepClose)  pepClose.addEventListener('click',  znCloseProfileEditor);
+    if (pepCancel) pepCancel.addEventListener('click', znCloseProfileEditor);
+    if (pepSave)   pepSave.addEventListener('click',   znSaveProfileEditor);
+    if (pepBd)     pepBd.addEventListener('click', function (e) { if (e.target === pepBd) znCloseProfileEditor(); });
+
+    // Zone A — action selector
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.pep-action-btn');
+        if (!btn) return;
+        var sel = btn.closest('.pep-action-selector');
+        if (!sel) return;
+        sel.querySelectorAll('.pep-action-btn').forEach(function (b) { b.classList.remove('is-active'); });
+        btn.classList.add('is-active');
+    });
+
+    // Zone C — add domain
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.pep-add-domain-btn');
+        if (btn) znAddDomainRow(btn.getAttribute('data-list-type'));
+    });
+
+    // Zone C — CSV import
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.pep-csv-btn');
+        if (!btn) return;
+        _pepCsvTarget = btn.getAttribute('data-list-type');
+        var fi = document.getElementById('pep-csv-file-input');
+        if (fi) { fi.value = ''; fi.click(); }
+    });
+    var csvInput = document.getElementById('pep-csv-file-input');
+    if (csvInput) {
+        csvInput.addEventListener('change', function () {
+            if (csvInput.files && csvInput.files[0] && _pepCsvTarget) znHandleCsvImport(_pepCsvTarget, csvInput.files[0]);
+        });
+    }
+
+    // Zone C — delete domain row
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.pep-domain-delete');
+        if (!btn) return;
+        var lt  = btn.getAttribute('data-list');
+        var idx = parseInt(btn.getAttribute('data-idx'), 10);
+        if (lt === 'allowlist') _pepAllowlist.splice(idx, 1);
+        else                    _pepBlocklist.splice(idx, 1);
+        znRenderDomainTable(lt);
+    });
+
+    // Agent config toggle
+    var agentToggle = document.getElementById('pep-agent-config-toggle');
+    if (agentToggle) {
+        agentToggle.addEventListener('click', function () {
+            var pre = document.getElementById('pep-agent-config-pre');
+            if (!pre) return;
+            var showing = pre.style.display !== 'none' && pre.style.display !== '';
+            if (showing) {
+                pre.style.display = 'none';
+                var sv = agentToggle.querySelector('svg'); if (sv) sv.style.transform = '';
+            } else {
+                var mockProfile = Object.assign({ id: _pepEditingId || 'preview' }, znGetProfileEditorValues());
+                pre.textContent = JSON.stringify(znGenerateAgentInstructions(mockProfile), null, 2);
+                pre.style.display = 'block';
+                var sv = agentToggle.querySelector('svg'); if (sv) sv.style.transform = 'rotate(180deg)';
+            }
+        });
+    }
+
+    // ── DNS Profiles list actions ──
+    var newProfileBtn = document.getElementById('dns-new-profile-btn');
+    if (newProfileBtn) newProfileBtn.addEventListener('click', function () { znOpenProfileEditor(); });
+
+    // Table row actions — event delegation
+    document.addEventListener('click', function (e) {
+        var btn    = e.target.closest('[data-action]');
+        if (!btn) return;
+        var action = btn.getAttribute('data-action');
+        var id     = btn.getAttribute('data-id');
+
+        if (action === 'edit-profile') {
+            znOpenProfileEditor(id);
+        } else if (action === 'delete-profile') {
+            if (!confirm('Delete this DNS Profile? Policies using it will lose their profile assignment.')) return;
+            znLoadDnsProfiles(function (profiles) {
+                znSaveDnsProfiles(profiles.filter(function (p) { return p.id !== id; }), znRenderDnsProfilesList);
+            });
+        } else if (action === 'edit-policy') {
+            znOpenPolicyEditor(id);
+        } else if (action === 'delete-policy') {
+            if (!confirm('Delete this DNS Policy?')) return;
+            znLoadDnsPolicies(function (policies) {
+                znSaveDnsPolicies(policies.filter(function (p) { return p.id !== id; }), znRenderDnsPoliciesTable);
+            });
+        } else if (action === 'dns-firewall') {
+            // Called from future Assets table integration
+            znOpenDnsFirewallModal(id ? [id] : []);
+        }
+    });
+
+    // ── DNS Policies page ──
+    var newPolicyBtn = document.getElementById('dns-new-policy-btn');
+    if (newPolicyBtn) newPolicyBtn.addEventListener('click', function () { znOpenPolicyEditor(); });
+
+    // Policy status toggle
+    document.addEventListener('change', function (e) {
+        var tog = e.target.closest('.dns-policy-status-toggle');
+        if (!tog) return;
+        var pid = tog.getAttribute('data-policy-id');
+        znLoadDnsPolicies(function (policies) {
+            policies = policies.map(function (p) {
+                return p.id === pid ? Object.assign({}, p, { status: tog.checked ? 'active' : 'inactive', updatedAt: new Date().toISOString() }) : p;
+            });
+            znSaveDnsPolicies(policies);
+        });
+    });
+
+    // ── Policy editor modal ──
+    var dpmClose  = document.getElementById('dns-policy-modal-close');
+    var dpmCancel = document.getElementById('dpm-cancel');
+    var dpmSave   = document.getElementById('dpm-save');
+    var dpmBd     = document.getElementById('dns-policy-modal-backdrop');
+    var dpmStatus = document.getElementById('dpm-status');
+    if (dpmClose)  dpmClose.addEventListener('click',  znClosePolicyEditor);
+    if (dpmCancel) dpmCancel.addEventListener('click', znClosePolicyEditor);
+    if (dpmSave)   dpmSave.addEventListener('click',   znSavePolicyEditor);
+    if (dpmBd)     dpmBd.addEventListener('click', function (e) { if (e.target === dpmBd) znClosePolicyEditor(); });
+    if (dpmStatus) dpmStatus.addEventListener('change', znUpdateDpmStatusText);
+
+    // ── DNS Firewall modal ──
+    var fwClose   = document.getElementById('dns-fw-modal-close');
+    var fwCancel  = document.getElementById('dns-fw-cancel');
+    var fwConfirm = document.getElementById('dns-fw-confirm');
+    var fwBd      = document.getElementById('dns-fw-modal-backdrop');
+    if (fwClose)   fwClose.addEventListener('click',   znCloseDnsFirewallModal);
+    if (fwCancel)  fwCancel.addEventListener('click',  znCloseDnsFirewallModal);
+    if (fwConfirm) fwConfirm.addEventListener('click', znConfirmDnsFirewall);
+    if (fwBd)      fwBd.addEventListener('click', function (e) { if (e.target === fwBd) znCloseDnsFirewallModal(); });
+
+    document.querySelectorAll('.dns-fw-tab').forEach(function (btn) {
+        btn.addEventListener('click', function () { znSwitchDnsFwTab(btn.getAttribute('data-tab')); });
+    });
+
+    // ── Add "Configure DNS Firewall" to session asset rows (event delegation) ──
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.dns-asset-fw-btn');
+        if (!btn) return;
+        var assetId = btn.getAttribute('data-asset-id') || '';
+        znOpenDnsFirewallModal(assetId ? [assetId] : []);
+    });
+}());
+
+// ── In-place portal navigation — content script can post ZN_SWITCH_PAGE ────
+// When the user clicks a portal sidebar item that the extension handles (e.g.
+// DNS FW Profiles / DNS FW Policies under the Visibility section), the content
+// script intercepts the click and posts this message so the dashboard switches
+// to the right page instead of the portal navigating away.
+window.addEventListener('message', function (e) {
+    if (!e.data || e.data.type !== 'ZN_SWITCH_PAGE') return;
+    var page    = e.data.page;
+    var context = e.data.context || '';
+    if (page === 'dns-protection' || page === 'dns-profiles' || page === 'dns-policies') {
+        znSwitchPage('dns-protection', context);
+        // Map legacy page names to the correct tab
+        if (page === 'dns-policies')  znSwitchDnsProtectionTab('policy-rules');
+        if (page === 'dns-profiles')  znSwitchDnsProtectionTab('dns-policy-profiles');
+    }
+});
+
+// ── Domain Lookup ─────────────────────────────────────────────────────────────
+//
+// On-demand domain intelligence tool.  Sends a ZN_DOMAIN_LOOKUP message to the
+// background SW which fans out to URLScan.io, RDAP, and Cloudflare DNS-over-HTTPS,
+// then renders the aggregated result (categories, risk score, evidence).
+
+var _dlInited = false;
+
+function znInitDomainLookup() {
+    if (_dlInited) return;
+    _dlInited = true;
+
+    var input   = document.getElementById('dl-domain-input');
+    var btn     = document.getElementById('dl-lookup-btn');
+    var result  = document.getElementById('dl-result');
+
+    if (!input || !btn || !result) return;
+
+    function runLookup() {
+        var raw = (input.value || '').trim();
+        if (!raw) { input.focus(); return; }
+        _znDomainLookup(raw);
+    }
+
+    btn.addEventListener('click', runLookup);
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') runLookup();
+    });
+}
+
+function _znDomainLookup(domain) {
+    var result = document.getElementById('dl-result');
+    if (!result) return;
+
+    // Show loading state
+    result.className = 'dl-result';
+    result.innerHTML = '<div class="dl-loading"><div class="dl-spinner"></div>Querying threat intelligence sources…</div>';
+
+    function doLookup() {
+        chrome.runtime.sendMessage({ type: 'ZN_DOMAIN_LOOKUP', domain: domain }, function (resp) {
+            if (chrome.runtime.lastError) {
+                _znDlShowError(result, chrome.runtime.lastError.message || 'Extension error');
+                return;
+            }
+            if (!resp || !resp.ok) {
+                _znDlShowError(result, (resp && resp.error) || 'Lookup failed — please try again.');
+                return;
+            }
+            _znDlRenderResult(result, resp);
+        });
+    }
+
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        doLookup();
+    } else {
+        _znDlShowError(result, 'Extension runtime not available.');
+    }
+}
+
+function _znDlShowError(container, msg) {
+    container.className = 'dl-result';
+    container.innerHTML =
+        '<div class="dl-error">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+        _znEscHtml(msg) +
+        '</div>';
+}
+
+function _znDlRenderResult(container, data) {
+    var level      = data.riskLevel || 'clean';
+    var score      = data.score || 0;
+    var label      = data.riskLabel || 'Clean';
+    var cats       = data.categories || [];
+    var evids      = data.evidence || [];
+    var domain     = data.domain || '';
+    var ts         = new Date().toLocaleString();
+
+    var catHtml = cats.length
+        ? cats.map(function (c) { return '<span class="dl-category-tag">' + _znEscHtml(c) + '</span>'; }).join('')
+        : '<span class="dl-no-categories">No threat categories detected</span>';
+
+    var evidHtml = evids.length
+        ? evids.map(function (e) { return '<li>' + _znEscHtml(e) + '</li>'; }).join('')
+        : '<li>No evidence data available</li>';
+
+    container.className = 'dl-result';
+    container.innerHTML =
+        '<div class="dl-result-header">' +
+            '<div class="dl-score-ring dl-score--' + level + '">' +
+                '<span class="dl-score-num">' + score + '</span>' +
+                '<span class="dl-score-of">/ 100</span>' +
+            '</div>' +
+            '<div class="dl-header-meta">' +
+                '<div class="dl-domain-name">' + _znEscHtml(domain) + '</div>' +
+                '<span class="dl-risk-badge dl-risk-badge--' + level + '">' +
+                    _znDlRiskIcon(level) + ' ' + _znEscHtml(label) +
+                '</span>' +
+            '</div>' +
+        '</div>' +
+        '<div class="dl-result-body">' +
+            '<div>' +
+                '<div class="dl-section-title">Current Categories</div>' +
+                '<div class="dl-categories">' + catHtml + '</div>' +
+            '</div>' +
+            '<div>' +
+                '<div class="dl-section-title">Evidence</div>' +
+                '<ul class="dl-evidence-list">' + evidHtml + '</ul>' +
+            '</div>' +
+        '</div>' +
+        '<div class="dl-result-footer">' +
+            '<span>Checked at ' + _znEscHtml(ts) + ' · Sources: URLScan.io, RDAP, Cloudflare DNS</span>' +
+            '<button class="dl-copy-btn" id="dl-copy-report">Copy Report</button>' +
+        '</div>';
+
+    // Wire copy button
+    var copyBtn = container.querySelector('#dl-copy-report');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', function () {
+            var lines = [
+                'Domain Lookup Report',
+                '====================',
+                'Domain  : ' + domain,
+                'Score   : ' + score + ' / 100  (' + label + ')',
+                'Checked : ' + ts,
+                '',
+                'Categories',
+                '----------',
+                cats.length ? cats.join(', ') : 'None',
+                '',
+                'Evidence',
+                '--------',
+            ].concat(evids.map(function (e) { return '• ' + e; }));
+            navigator.clipboard.writeText(lines.join('\n')).then(function () {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(function () { copyBtn.textContent = 'Copy Report'; }, 2000);
+            });
+        });
+    }
+
+    // Fire analytics
+    if (typeof znTrackEvent === 'function') {
+        znTrackEvent('domain_lookup', { risk_level: level, risk_score: score });
+    }
+}
+
+function _znDlRiskIcon(level) {
+    if (level === 'clean')    return '✓';
+    if (level === 'low')      return '↓';
+    if (level === 'medium')   return '⚠';
+    if (level === 'high')     return '⚠';
+    if (level === 'critical') return '✕';
+    return '';
+}
+
+function _znEscHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+

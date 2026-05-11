@@ -51,7 +51,12 @@ function _storeDiagLog(entry: Omit<DiagLogEntry, 'ts'>) {
 self.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
   const msg: string =
     (event.reason instanceof Error ? event.reason.message : String(event.reason ?? ''))
-  if (msg.toLowerCase().includes('failed to fetch')) {
+  // Suppress harmless dev-server / port lifecycle noise.
+  if (
+    msg.toLowerCase().includes('failed to fetch') ||
+    msg.includes('Extension context invalidated') ||
+    msg.includes('disconnected port')
+  ) {
     event.preventDefault()
     return
   }
@@ -527,6 +532,16 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
 const GIST_VERSION_URL =
   'https://gist.githubusercontent.com/guyavnet-zero/b53427ba229f9cf1e9e97cad6834ef2a/raw/version.json'
 
+function _isNewerVersion(a: string, b: string): boolean {
+  const av = a.split('.').map(Number)
+  const bv = b.split('.').map(Number)
+  for (let i = 0; i < 3; i++) {
+    if ((av[i] ?? 0) > (bv[i] ?? 0)) return true
+    if ((av[i] ?? 0) < (bv[i] ?? 0)) return false
+  }
+  return false
+}
+
 async function _checkForUpdate(): Promise<void> {
   try {
     const res  = await fetch(`${GIST_VERSION_URL}?t=${Date.now()}`)
@@ -535,7 +550,7 @@ async function _checkForUpdate(): Promise<void> {
     const latest = data?.version ?? ''
     if (!latest) return
 
-    if (latest !== version) {
+    if (_isNewerVersion(latest, version)) {
       chrome.storage.local.set({ znUpdateAvailable: true, znLatestVersion: latest })
       console.log(`[ZN Update] New version available: v${latest} (installed: v${version})`)
     } else {
@@ -554,6 +569,213 @@ _checkForUpdate()
 chrome.alarms.create('zn-update-check', { periodInMinutes: 240 })
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'zn-update-check') _checkForUpdate()
+})
+
+// ── 10. Domain Lookup proxy ──────────────────────────────────────────────────
+//
+// Aggregates domain intelligence from multiple free/public APIs to provide
+// categories, a reputation score, and evidence. Runs in the SW to bypass CORS.
+//
+// APIs used (no keys required):
+//   • URLScan.io  — past-scan verdicts and tags
+//   • RDAP.org    — WHOIS registration date (newly-registered domain detection)
+//   • Cloudflare DNS-over-HTTPS (1.1.1.1) — confirms public resolution
+//   • Cloudflare Security DNS-over-HTTPS (1.1.1.2) — malware/phishing blocking
+
+chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+  const msg = message as Record<string, unknown>
+  if (msg?.type !== 'ZN_DOMAIN_LOOKUP' || typeof msg.domain !== 'string') return
+
+  // Normalise: strip protocol, path, and leading www.
+  const raw = msg.domain.trim().toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .replace(/^www\./, '')
+    .split(':')[0]   // strip port
+
+  if (!raw || !/^[a-z0-9._-]+\.[a-z]{2,}$/.test(raw)) {
+    sendResponse({ ok: false, error: 'Please enter a valid domain name (e.g. example.com).' })
+    return true
+  }
+
+  ;(async () => {
+    const evidence: string[] = []
+    const categories: string[] = []
+    let riskScore = 0
+
+    // ── URLScan.io ──────────────────────────────────────────────────────────
+    let urlscanTotal = -1
+    try {
+      const r = await fetch(
+        `https://urlscan.io/api/v1/search/?q=domain:${encodeURIComponent(raw)}&size=5`,
+        { headers: { Accept: 'application/json' } },
+      )
+      if (r.ok) {
+        const data = await r.json() as {
+          results?: Array<{
+            verdicts?: {
+              overall?: {
+                score?: number
+                malicious?: boolean
+                suspicious?: boolean
+                tags?: string[]
+                categories?: string[]
+              }
+            }
+          }>
+          total?: number
+        }
+        urlscanTotal = data.total ?? 0
+        if (data.results && data.results.length > 0) {
+          const v = data.results[0].verdicts?.overall
+          if (v) {
+            if (v.malicious) {
+              riskScore += 60
+              categories.push('Malicious')
+              evidence.push('URLScan.io: flagged as malicious in at least one scan')
+            } else if (v.suspicious) {
+              riskScore += 30
+              categories.push('Suspicious')
+              evidence.push('URLScan.io: flagged as suspicious in at least one scan')
+            }
+            const tags = [...(v.tags ?? []), ...(v.categories ?? [])]
+            const uniqueTags = [...new Set(tags.map(t => t.charAt(0).toUpperCase() + t.slice(1)))]
+            if (uniqueTags.length) {
+              categories.push(...uniqueTags)
+              evidence.push(`URLScan tags: ${uniqueTags.join(', ')}`)
+            }
+            if (typeof v.score === 'number' && v.score > 0) {
+              riskScore = Math.max(riskScore, Math.min(Math.round(v.score * 0.6), 60))
+            }
+          }
+        }
+        if (urlscanTotal === 0) {
+          evidence.push('URLScan.io: no prior scans found — domain is unknown to this database')
+        } else {
+          evidence.push(`URLScan.io: ${urlscanTotal} scan${urlscanTotal === 1 ? '' : 's'} on record`)
+        }
+      }
+    } catch {
+      evidence.push('URLScan.io: could not reach API')
+    }
+
+    // ── RDAP (WHOIS) ─────────────────────────────────────────────────────────
+    try {
+      const r = await fetch(
+        `https://rdap.org/domain/${encodeURIComponent(raw)}`,
+        { headers: { Accept: 'application/json' } },
+      )
+      if (r.ok) {
+        const data = await r.json() as {
+          events?: Array<{ eventAction?: string; eventDate?: string }>
+          status?: string[]
+        }
+        const regEvent = data.events?.find(e => e.eventAction === 'registration')
+        const expEvent = data.events?.find(e => e.eventAction === 'expiration')
+        if (regEvent?.eventDate) {
+          const regDate  = new Date(regEvent.eventDate)
+          const ageDays  = Math.floor((Date.now() - regDate.getTime()) / 86_400_000)
+          if (ageDays < 30) {
+            riskScore += 30
+            categories.push('Newly Registered Domain')
+            evidence.push(`Registration: domain created only ${ageDays} day${ageDays === 1 ? '' : 's'} ago — high NRD risk`)
+          } else if (ageDays < 90) {
+            riskScore += 15
+            categories.push('Recently Registered')
+            evidence.push(`Registration: domain created ${ageDays} days ago (within 90 days)`)
+          } else {
+            const ageYears = (ageDays / 365).toFixed(1)
+            evidence.push(`Registration: domain is ${ageYears} year${parseFloat(ageYears) === 1 ? '' : 's'} old`)
+          }
+        }
+        if (expEvent?.eventDate) {
+          const expDate  = new Date(expEvent.eventDate)
+          const daysLeft = Math.floor((expDate.getTime() - Date.now()) / 86_400_000)
+          if (daysLeft < 30 && daysLeft >= 0) {
+            riskScore += 10
+            evidence.push(`Expiry: domain expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'} — renewal risk`)
+          }
+        }
+        if (data.status?.some(s => s.includes('hold'))) {
+          riskScore += 20
+          categories.push('Registry Hold')
+          evidence.push('Registration: domain is on registry hold (possibly suspended)')
+        }
+      } else if (r.status === 404) {
+        evidence.push('RDAP: domain not found in public registry (may be internal or ccTLD-only)')
+      }
+    } catch {
+      evidence.push('RDAP: could not reach WHOIS service')
+    }
+
+    // ── DNS-over-HTTPS ────────────────────────────────────────────────────────
+    let normalResolves  = false
+    let securityBlocked = false
+
+    try {
+      const r = await fetch(
+        `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(raw)}&type=A`,
+        { headers: { Accept: 'application/dns-json' } },
+      )
+      if (r.ok) {
+        const data = await r.json() as { Status?: number; Answer?: unknown[] }
+        if (data.Status === 0 && data.Answer && data.Answer.length > 0) {
+          normalResolves = true
+          evidence.push('DNS: domain resolves via public DNS (Cloudflare 1.1.1.1)')
+        } else if (data.Status === 3) {
+          categories.push('Non-Existent Domain')
+          evidence.push('DNS: NXDOMAIN — domain does not exist in public DNS')
+        }
+      }
+    } catch {
+      evidence.push('DNS: could not reach Cloudflare resolver')
+    }
+
+    try {
+      const r = await fetch(
+        `https://security.cloudflare-dns.com/dns-query?name=${encodeURIComponent(raw)}&type=A`,
+        { headers: { Accept: 'application/dns-json' } },
+      )
+      if (r.ok) {
+        const data = await r.json() as { Status?: number; Answer?: unknown[] }
+        if (data.Status === 3 || (data.Status === 0 && (!data.Answer || data.Answer.length === 0))) {
+          securityBlocked = true
+        }
+      }
+    } catch { /* non-fatal */ }
+
+    if (securityBlocked && normalResolves) {
+      riskScore += 50
+      categories.push('Malware / Phishing')
+      evidence.push('DNS: blocked by Cloudflare security resolver (1.1.1.2) — detected as malware or phishing source')
+    }
+
+    // ── Aggregate ─────────────────────────────────────────────────────────────
+    riskScore = Math.min(riskScore, 100)
+    const uniqueCategories = [...new Set(categories)]
+
+    let riskLabel: string
+    let riskLevel: 'clean' | 'low' | 'medium' | 'high' | 'critical'
+    if (riskScore >= 75)      { riskLabel = 'Critical'; riskLevel = 'critical' }
+    else if (riskScore >= 50) { riskLabel = 'High';     riskLevel = 'high'     }
+    else if (riskScore >= 25) { riskLabel = 'Medium';   riskLevel = 'medium'   }
+    else if (riskScore >= 10) { riskLabel = 'Low';      riskLevel = 'low'      }
+    else                      { riskLabel = 'Clean';    riskLevel = 'clean'    }
+
+    return {
+      ok: true,
+      domain: raw,
+      score: riskScore,
+      riskLabel,
+      riskLevel,
+      categories: uniqueCategories,
+      evidence,
+    }
+  })()
+    .then(sendResponse)
+    .catch((e: Error) => sendResponse({ ok: false, error: e.message }))
+
+  return true // keep message channel open for async response
 })
 
 // ── 8. Formspree proxy ───────────────────────────────────────────────────────

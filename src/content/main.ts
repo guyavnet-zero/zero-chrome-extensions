@@ -591,7 +591,18 @@
       "\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif!important;" +
       "font-size:1.05rem!important;font-weight:700!important;" +
       "color:#1a233a!important;letter-spacing:-0.02em!important;" +
-      "line-height:1.2!important;}";
+      "line-height:1.2!important;}" +
+
+      // ── Hide external/launch icons from portal sidebar nav items ─────────────
+      // Some portal nav items render a small "open in new tab" arrow icon; suppress it.
+      ".zn-sidebar .zn-sidebar-item-base__icon--external," +
+      ".zn-sidebar .zn-external-link-icon," +
+      ".zn-sidebar a.zn-route-sidebar-item .zn-sidebar-item__external-icon," +
+      ".zn-sidebar a[target='_blank'] .zn-sidebar-item-base__icon," +
+      ".zn-sidebar [class*='external-link']," +
+      ".zn-sidebar [class*='externalLink']," +
+      ".zn-sidebar mat-icon.zn-external-icon" +
+      "{display:none!important;}";
 
     (document.head || document.documentElement).appendChild(st);
   }
@@ -962,7 +973,7 @@
       background:    "transparent",
       boxShadow:     "none",
       color:         "#ffffff",
-      fontWeight:    "600",
+      fontWeight:    "400",
       fontSize:      "13px",
       textAlign:     "left",
       cursor:        "pointer",
@@ -1099,10 +1110,11 @@
         if (e.target.closest("#" + BTN_ID)) return;
         const mount = document.getElementById(MOUNT_ID);
         if (!mount || mount.style.display === "none") return;
-        if (
-          e.target.closest("aside, nav, [role='navigation']") ||
-          e.target.closest("a[routerLink], a[href], button[routerLink]")
-        ) {
+        // Only close the dashboard when the user clicks an actual navigation link.
+        // Expand/collapse toggles (plain <button> without routerLink / href) must
+        // NOT trigger a close — that was breaking the "Rules" and "Visibility"
+        // section toggles in the portal sidebar.
+        if (e.target.closest("a[routerLink], a[href], button[routerLink]")) {
           hideDashboardFromNavClick();
         }
       },
@@ -1144,6 +1156,20 @@
   function startMutationObserver() {
     if (mutationObserver) return;
     mutationObserver = new MutationObserver((mutations) => {
+      // Re-apply DNS FW nav intercepts whenever the sidebar DOM changes —
+      // this fires even on non-Connect routes (Visibility section, etc.).
+      let anySidebarMutation = false;
+      mutations.forEach((mutation) => {
+        if (mutation.addedNodes.length > 0) {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE && touchesConnectSidebarNav(node)) {
+              anySidebarMutation = true;
+            }
+          });
+        }
+      });
+      if (anySidebarMutation) { interceptDnsNavItems(); renamePortalSidebarLabels(); }
+
       if (!isConnectRoute()) return;
 
       let buttonRemoved = false;
@@ -1207,6 +1233,109 @@
     setTimeout(observeSidebars, 3000);
   }
 
+  // ── In-place portal nav interception ────────────────────────────────────────
+  // Portal sidebar items for DNS FW Profiles / DNS FW Policies (under Visibility
+  // or any other section) are intercepted so they open the extension's dashboard
+  // with the matching page instead of navigating the portal away.
+
+  const ZN_DNS_INTERCEPT_ATTR = 'data-zn-dns-intercepted';
+
+  const ZN_INTERCEPTED_PAGES = [
+    {
+      page: 'dns-profiles',
+      textMatches: ['dns fw profiles', 'dns firewall profiles', 'rpc fw profiles', 'dns profiles'],
+      hrefMatches: ['dns-fw-profiles', 'dns-fw/profiles', 'dns_fw_profiles',
+                    'visibility/dns-fw', 'visibility/dns-firewall', 'visibility/dns-profiles',
+                    'security-engines/rpc-fw', 'security-engines/rules/rpc', 'security-engines/visibility/rpc',
+                    'security_engines/rpc', 'rpc-fw/profiles', 'rpcfw/profiles'],
+    },
+    {
+      page: 'dns-policies',
+      textMatches: ['dns fw policies', 'dns firewall policies', 'rpc fw policies', 'dns policies'],
+      hrefMatches: ['dns-fw-policies', 'dns-fw/policies', 'dns_fw_policies',
+                    'visibility/dns-policies', 'visibility/dns-fw-policies',
+                    'security-engines/rpc-fw/policies', 'security_engines/rpc-fw/policies',
+                    'rpc-fw/policies', 'rpcfw/policies'],
+    },
+  ];
+
+  /** True when the current portal URL is in the Security Engines section. */
+  function isSecurityEnginesRoute(): boolean {
+    const p = (location.pathname || '').toLowerCase();
+    const h = (location.hash || '').toLowerCase();
+    return p.includes('security-engine') || h.includes('security-engine') ||
+           p.includes('security_engine') || h.includes('security_engine');
+  }
+
+  function sendPageToIframe(page: string, context?: string) {
+    const iframeEl = document.querySelector<HTMLIFrameElement>('[data-zn-dashboard-iframe]');
+    if (iframeEl && iframeEl.contentWindow) {
+      try { iframeEl.contentWindow.postMessage({ type: 'ZN_SWITCH_PAGE', page, context }, '*'); } catch (_) {}
+    }
+  }
+
+  function showDashboardPage(page: string, context?: string) {
+    showDashboard();
+    // Retry several times to handle the "iframe not yet mounted" case.
+    [50, 200, 500, 1000].forEach((ms) => setTimeout(() => sendPageToIframe(page, context), ms));
+  }
+
+  function interceptDnsNavItems() {
+    const root = getSidebarSearchRoot();
+    if (!root) return;
+    root.querySelectorAll<HTMLElement>('a, button').forEach((el) => {
+      if (el.getAttribute(ZN_DNS_INTERCEPT_ATTR)) return;
+      const text = normalize(el.textContent || '');
+      const href = (el.getAttribute('href') || '').toLowerCase();
+      for (const def of ZN_INTERCEPTED_PAGES) {
+        const matched =
+          def.textMatches.some((m) => text === m || text.includes(m)) ||
+          def.hrefMatches.some((h) => href.includes(h));
+        if (matched) {
+          el.setAttribute(ZN_DNS_INTERCEPT_ATTR, def.page);
+          const page = def.page;
+          el.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            const linkHref = (el.getAttribute('href') || '').toLowerCase();
+            const ctx = (isSecurityEnginesRoute() || linkHref.includes('security-engine'))
+              ? 'security-engines'
+              : undefined;
+            showDashboardPage(page, ctx);
+          }, true);
+          break;
+        }
+      }
+    });
+  }
+
+  function scheduleInterceptDnsNavItems() {
+    [0, 500, 1500, 3000, 5000].forEach((ms) => setTimeout(interceptDnsNavItems, ms));
+  }
+
+  // ── Portal sidebar label rename ───────────────────────────────────────────
+  // Walks the portal's left-nav text nodes and replaces "Security Engines"
+  // with "Security" so the label matches internal naming conventions.
+
+  const ZN_RENAMED_ATTR = 'data-zn-renamed';
+
+  function renamePortalSidebarLabels() {
+    const root = getSidebarSearchRoot();
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node: Text | null;
+    while ((node = walker.nextNode() as Text | null)) {
+      if (node.nodeValue && node.nodeValue.trim() === 'Security Engines') {
+        node.nodeValue = node.nodeValue.replace('Security Engines', 'Security');
+        const parent = node.parentElement;
+        if (parent) parent.setAttribute(ZN_RENAMED_ATTR, '1');
+      }
+    }
+  }
+
+  function scheduleRenamePortalSidebarLabels() {
+    [0, 300, 800, 2000, 4000].forEach((ms) => setTimeout(renamePortalSidebarLabels, ms));
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
 
   function init() {
@@ -1215,6 +1344,8 @@
     startMutationObserver();
     startSidebarResizeObserver();
     tryInjectDashboardButton();
+    scheduleInterceptDnsNavItems();
+    scheduleRenamePortalSidebarLabels();
     setTimeout(maybeRestoreDashboard, 300);
   }
 

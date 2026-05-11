@@ -29,6 +29,67 @@ function patchCrxjsDevAssets(): Plugin {
     if (patched !== original) fs.writeFileSync(filePath, patched)
   }
 
+  // Hoisted so both configureServer (middleware + file watcher) and closeBundle
+  // use exactly the same set of patches — eliminates the bug where CRXJS
+  // regenerating the file after closeBundle left send() unguarded.
+  function patchCrxClientPort(src: string): string {
+    let out = src
+
+    // Patch A — send() guard (idempotent: no-op if already wrapped)
+    out = out.replace(
+      '    if (this.port)\n      this.port.postMessage({ data });\n    else',
+      '    if (this.port)\n      try { this.port.postMessage({ data }); } catch (_) {}\n    else',
+    )
+
+    // Patch A2 — remove the else-throw from send() so a null/dead port is silently
+    // skipped instead of throwing an uncaught error.  Runs after Patch A so it
+    // always sees the try/catch form regardless of whether Patch A fired this run.
+    out = out.replace(
+      '    if (this.port)\n      try { this.port.postMessage({ data }); } catch (_) {}\n    else\n      throw new Error("HMRPort is not initialized");',
+      '    if (this.port)\n      try { this.port.postMessage({ data }); } catch (_) {}',
+    )
+
+    // Patch B — initPort() guard (idempotent: no-op if already wrapped)
+    out = out.replace(
+      '  initPort = () => {\n    this.port?.disconnect();\n    this.port = chrome.runtime.connect({ name: "@crx/client" });\n    this.port.onDisconnect.addListener(this.handleDisconnect.bind(this));\n    this.port.onMessage.addListener(this.handleMessage.bind(this));\n    this.port.postMessage({ type: "connected" });\n  };',
+      '  initPort = () => {\n    try {\n      this.port?.disconnect();\n      this.port = chrome.runtime.connect({ name: "@crx/client" });\n      this.port.onDisconnect.addListener(this.handleDisconnect.bind(this));\n      this.port.onMessage.addListener(this.handleMessage.bind(this));\n      this.port.postMessage({ type: "connected" });\n    } catch (error) {\n      if (error instanceof Error && error.message.includes("Extension context invalidated.")) location.reload();\n    }\n  };',
+    )
+
+    // Patch C — ping-interval catch: swallow ALL non-reload errors so no Chrome
+    // port error (e.g. "Attempting to use a disconnected port object", "disconnected
+    // port", etc.) can propagate as an uncaught exception from a timer callback.
+    // Three regex variants handle every form the file could have:
+    //   v1 — original CRXJS: `} else\n    throw error;`
+    //   v2 — prior patch form: `} else if (... && !includes("disconnected port")) { throw error }`
+    //   v3 — template before source-patch: `} else if (!(... includes("disconnected port")))\n    throw error;`
+    out = out.replace(
+      /error\.message\.includes\("Extension context invalidated\."\)\) \{\n(\s+)location\.reload\(\);\n(\s+)\} else\n(\s+)throw error;/,
+      (_, sp1, sp2) =>
+        `error.message.includes("Extension context invalidated.")) {\n${sp1}location.reload();\n${sp2}}`,
+    )
+    out = out.replace(
+      /error\.message\.includes\("Extension context invalidated\."\)\) \{\n(\s+)location\.reload\(\);\n(\s+)\} else if \(error instanceof Error && !error\.message\.includes\("disconnected port"\)\) \{\n(\s+)throw error;\n(\s+)\}/,
+      (_, sp1, sp2) =>
+        `error.message.includes("Extension context invalidated.")) {\n${sp1}location.reload();\n${sp2}}`,
+    )
+    out = out.replace(
+      /error\.message\.includes\("Extension context invalidated\."\)\) \{\n(\s+)location\.reload\(\);\n(\s+)\} else if \(!\(error instanceof Error && error\.message\.includes\("disconnected port"\)\)\)\n(\s+)throw error;/,
+      (_, sp1, sp2) =>
+        `error.message.includes("Extension context invalidated.")) {\n${sp1}location.reload();\n${sp2}}`,
+    )
+
+    // Patch D — handleDisconnect: null the dead port and schedule an immediate
+    // reconnect (1 s) so HMR recovers after a SW restart instead of waiting up
+    // to 5 minutes for the setInterval to fire.  The try/catch around initPort()
+    // ensures that a not-yet-ready SW doesn't surface a new error.
+    out = out.replace(
+      '  handleDisconnect = () => {\n    if (this.callbacks.has("close"))\n      for (const cb of this.callbacks.get("close")) {\n        cb({ wasClean: true });\n      }\n  };',
+      '  handleDisconnect = () => {\n    this.port = null;\n    if (this.callbacks.has("close"))\n      for (const cb of this.callbacks.get("close")) {\n        cb({ wasClean: true });\n      }\n    setTimeout(() => { try { this.initPort(); } catch (_) {} }, 1e3);\n  };',
+    )
+
+    return out
+  }
+
   return {
     name: 'patch-crxjs-dev-assets',
 
@@ -41,16 +102,47 @@ function patchCrxjsDevAssets(): Plugin {
     // NOTE: this patch survives restarts (the patched file lives on disk) but is
     // reset by `npm install`.  A postinstall script re-applies it automatically.
     buildStart() {
+      // Patch the contentHmrPort template string embedded in the CRXJS plugin source
+      // so that every file CRXJS generates is already correct — eliminating the race
+      // window between CRXJS writing the unpatched file and our file-watcher re-patching it.
+      //
+      // Three fixes applied to the template:
+      //  1. Ping-interval catch: remove the else-if-throw so any Chrome port error
+      //     (e.g. "Attempting to use a disconnected port object") is silently swallowed
+      //     instead of bubbling up as an uncaught exception from a timer callback.
+      //  2. handleDisconnect: null the dead port and schedule an immediate reconnect
+      //     so HMR recovers after a SW restart without waiting up to 5 minutes.
+      //  3. send(): remove the else-throw so a null/dead port is silently skipped.
+      function patchContentHmrPortTemplate(src: string): string {
+        let out = src
+        // Fix 1 — swallow all non-reload errors from the ping interval
+        out = out.replace(
+          '} else if (!(error instanceof Error && error.message.includes(\\"disconnected port\\")))\\n          throw error;',
+          '}',
+        )
+        // Fix 2 — handleDisconnect: null port + auto-reconnect
+        out = out.replace(
+          'handleDisconnect = () => {\\n    if (this.callbacks.has(\\"close\\"))\\n      for (const cb of this.callbacks.get(\\"close\\")) {\\n        cb({ wasClean: true });\\n      }\\n  };',
+          'handleDisconnect = () => {\\n    this.port = null;\\n    if (this.callbacks.has(\\"close\\"))\\n      for (const cb of this.callbacks.get(\\"close\\")) {\\n        cb({ wasClean: true });\\n      }\\n    setTimeout(() => { try { this.initPort(); } catch (_) {} }, 1e3);\\n  };',
+        )
+        // Fix 3 — remove else-throw from send()
+        out = out.replace(
+          '\\n    else\\n      throw new Error(\\"HMRPort is not initialized\\");',
+          '',
+        )
+        return out
+      }
+
       applyPatch(
         path.resolve(__dirname, 'node_modules/@crxjs/vite-plugin/dist/index.mjs'),
-        (src) => src.replace(
+        (src) => patchContentHmrPortTemplate(src).replace(
           'matches: ["<all_urls>"]',
           'matches: ["https://*.zeronetworks.com/*"]',
         ),
       )
       applyPatch(
         path.resolve(__dirname, 'node_modules/@crxjs/vite-plugin/dist/index.cjs'),
-        (src) => src.replace(
+        (src) => patchContentHmrPortTemplate(src).replace(
           'matches: ["<all_urls>"]',
           'matches: ["https://*.zeronetworks.com/*"]',
         ),
@@ -64,18 +156,8 @@ function patchCrxjsDevAssets(): Plugin {
     // ensures the extension always receives the corrected file regardless of
     // when CRXJS last wrote it to dist/.
     configureServer(server) {
-      // crx-client-port.js — patch the ping-interval catch block so
-      // "Attempting to use a disconnected port object" is silenced.
-      // Two layers: (a) middleware for the SW-proxy HTTP path, and
-      // (b) file watcher to re-patch the disk copy if CRXJS regenerates it.
-      function patchCrxClientPort(src: string): string {
-        return src.replace(
-          /error\.message\.includes\("Extension context invalidated\."\)\) \{\n(\s+)location\.reload\(\);\n(\s+)\} else\n(\s+)throw error;/,
-          (_, sp1, sp2, sp3) =>
-            `error.message.includes("Extension context invalidated.")) {\n${sp1}location.reload();\n${sp2}} else if (error instanceof Error && !error.message.includes("disconnected port")) {\n${sp3}throw error;\n${sp2}}`,
-        )
-      }
-
+      // crx-client-port.js middleware + file-watcher both use the hoisted
+      // patchCrxClientPort() so all three patches (A/B/C) are applied consistently.
       server.middlewares.use((req, res, next) => {
         if (!req.url?.includes('/vendor/crx-client-port.js')) return next()
         const filePath = path.resolve(__dirname, 'dist', 'vendor', 'crx-client-port.js')
@@ -239,35 +321,9 @@ function patchCrxjsDevAssets(): Plugin {
     closeBundle() {
       const distDir = path.resolve(__dirname, 'dist')
 
-      // Fix 1a: guard HMRPort.send() against an invalidated extension context
-      // Fix 1b: guard HMRPort.initPort() so a dead context reloads the page
-      //         instead of throwing — prevents vite-client from trying the
-      //         direct-WebSocket fallback that always fails in content scripts.
-      applyPatch(
-        path.join(distDir, 'vendor', 'crx-client-port.js'),
-        (src) => {
-          // send() guard
-          let out = src.replace(
-            '    if (this.port)\n      this.port.postMessage({ data });\n    else',
-            '    if (this.port)\n      try { this.port.postMessage({ data }); } catch (_) {}\n    else'
-          )
-          // initPort() guard
-          out = out.replace(
-            '  initPort = () => {\n    this.port?.disconnect();\n    this.port = chrome.runtime.connect({ name: "@crx/client" });\n    this.port.onDisconnect.addListener(this.handleDisconnect.bind(this));\n    this.port.onMessage.addListener(this.handleMessage.bind(this));\n    this.port.postMessage({ type: "connected" });\n  };',
-            '  initPort = () => {\n    try {\n      this.port?.disconnect();\n      this.port = chrome.runtime.connect({ name: "@crx/client" });\n      this.port.onDisconnect.addListener(this.handleDisconnect.bind(this));\n      this.port.onMessage.addListener(this.handleMessage.bind(this));\n      this.port.postMessage({ type: "connected" });\n    } catch (error) {\n      if (error instanceof Error && error.message.includes("Extension context invalidated.")) location.reload();\n    }\n  };'
-          )
-          // Ping-interval guard — "Attempting to use a disconnected port object" is a
-          // sibling error to "Extension context invalidated." (bfcache / navigation).
-          // Both indicate the port is gone; neither should surface as an extension error.
-          // Use a regex so indentation variations between CRXJS versions don't break the match.
-          out = out.replace(
-            /error\.message\.includes\("Extension context invalidated\."\)\) \{\n(\s+)location\.reload\(\);\n(\s+)\} else\n(\s+)throw error;/,
-            (_, sp1, sp2, sp3) =>
-              `error.message.includes("Extension context invalidated.")) {\n${sp1}location.reload();\n${sp2}} else if (error instanceof Error && !error.message.includes("disconnected port")) {\n${sp3}throw error;\n${sp2}}`,
-          )
-          return out
-        }
-      )
+      // Apply all three crx-client-port.js guards (A/B/C) via the shared helper —
+      // same function used by the dev-server middleware and file watcher above.
+      applyPatch(path.join(distDir, 'vendor', 'crx-client-port.js'), patchCrxClientPort)
 
       // Fix 1c: patch vite-client.js —
       //   a) remove the @webcomponents/custom-elements import (inline-script

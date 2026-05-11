@@ -60,6 +60,10 @@ export default defineManifest({
     'https://tiles.openfreemap.org/*',
     'https://*.openfreemap.org/*',
     'https://formspree.io/*',
+    'https://urlscan.io/*',
+    'https://rdap.org/*',
+    'https://cloudflare-dns.com/*',
+    'https://security.cloudflare-dns.com/*',
   ],
   web_accessible_resources: [
     {
